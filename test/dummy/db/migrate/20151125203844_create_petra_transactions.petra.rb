@@ -1,3 +1,4 @@
+# This migration comes from petra (originally 20151123171754)
 class CreatePetraTransactions < ActiveRecord::Migration
   def change
     create_table :petra_transactions do |t|
