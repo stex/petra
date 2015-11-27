@@ -24,4 +24,6 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'temping'
   s.add_development_dependency 'rspec-rails'
   s.add_development_dependency 'pry-rails'
+  s.add_development_dependency 'guard-rspec'
+  s.add_development_dependency 'guard-rubocop'
 end

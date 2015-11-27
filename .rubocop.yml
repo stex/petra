@@ -1,0 +1,89 @@
+# Max line length
+LineLength:
+  Max: 120
+
+# Allow 1.8 hash style
+HashSyntax:
+  Enabled: false
+
+# Don't require a _ to split an integer like 1000.
+Style/NumericLiterals:
+  Enabled: false
+
+# Not all modules have to have top level comments
+Style/Documentation:
+  Enabled: false
+
+# Hashes do not need padding
+Style/SpaceInsideHashLiteralBraces:
+  Enabled: false
+
+# Allow 2 space indentation for when inside a case
+Style/CaseIndentation:
+  Enabled: false
+
+# Allow bigger classes
+Metrics/ClassLength:
+  Enabled: false
+
+# Allow compact module declaration
+Style/ClassAndModuleChildren:
+  Enabled: false
+
+# Allow multiple spaces before first argument
+Style/SingleSpaceBeforeFirstArg:
+  Enabled: false
+
+# Allow extra spacing, e.g. to align components
+Style/ExtraSpacing:
+  Enabled: false
+
+# Sometimes conditional blocks aren't the worst solution...
+Style/GuardClause:
+  Enabled: false
+
+# Allow longer methods
+Metrics/MethodLength:
+  Enabled: false
+
+# This does not work correctly if the format string is not given
+# directly but through a variable or similar
+Lint/FormatParameterMismatch:
+  Enabled: false
+
+# Allow lambda.(...) for jBuilder
+Style/LambdaCall:
+  Enabled: false
+
+# Allow the use of !! (conversion of nil/object to true/false)
+Style/DoubleNegation:
+  Enabled: false
+
+# Usually good, but in some cases not possible
+Style/AlignHash:
+  Enabled: false
+
+# Allow an empty line after do / before end
+Style/EmptyLinesAroundBlockBody:
+  Enabled: false
+
+# Allow unless/if blocks even for one-liners
+Style/IfUnlessModifier:
+  Enabled: false
+
+# Allow bigger modules
+Metrics/ModuleLength:
+  Enabled: false
+
+# Allow empty lines in classes
+Style/EmptyLinesAroundClassBody:
+  Enabled: false
+
+# Generally a good idea, but "and return" looks nicer than " && return"
+Style/AndOr:
+  Enabled: false
+
+# Again, generally a good idea, but it has problemsn with multiline operations in
+# combinaton with assignments
+Style/MultilineOperationIndentation:
+  Enabled: false

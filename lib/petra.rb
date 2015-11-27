@@ -7,7 +7,7 @@ module Petra
   end
 
   def self.configuration
-    @configuration ||= Petra::Configuration.new
+    @configuration ||= Petra::Configuration::Base.new
   end
 
   def self.configure
@@ -16,7 +16,8 @@ module Petra
 end
 
 # Load the ActiveRecord models in ActiveRecord itself is defined.
-# TODO: Check for these includes when setting the persistence adapter to ensure that ActiveRecord can only be used when it's available.
+# TODO: Check for these includes when setting the persistence adapter
+#       to ensure that ActiveRecord can only be used when it's available.
 if defined?(ActiveRecord::Base)
   require_all File.join(Petra.root, 'app', 'models')
 end
