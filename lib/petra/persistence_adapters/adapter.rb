@@ -6,8 +6,6 @@ module Petra
     # a transaction adapter has to implement.
     #
     class Adapter
-      self.abstract_class = true
-
       def start_or_continue
         fail NotImplementedError
       end
@@ -15,8 +13,6 @@ module Petra
       def commit
         fail NotImplementedError
       end
-
     end
-
   end
 end

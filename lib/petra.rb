@@ -1,8 +1,5 @@
 require 'require_all'
-
-# The engine definition has to be required first, otherwise Rails components like
-# rake tasks are not built properly
-require 'petra/engine'
+require_all File.join(File.dirname(__FILE__), 'petra')
 
 module Petra
   def self.root
@@ -18,18 +15,16 @@ module Petra
   end
 end
 
-autoload_all File.join(File.dirname(__FILE__), 'petra')
-
 # Load the ActiveRecord models in ActiveRecord itself is defined.
 # TODO: Check for these includes when setting the persistence adapter to ensure that ActiveRecord can only be used when it's available.
 if defined?(ActiveRecord::Base)
   require_all File.join(Petra.root, 'app', 'models')
 end
 
+#----------------------------------------------------------------
+#                       Core Extensions
+#----------------------------------------------------------------
+
 Object.class_eval do
   include Petra::CoreExt::Object
-end
-
-NilClass.class_eval do
-  include Petra::CoreExt::NilClass
 end
