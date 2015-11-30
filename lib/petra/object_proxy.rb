@@ -25,7 +25,10 @@ module Petra
     #
     def method_missing(meth, *args, &block)
       puts "Proxying #{meth}(#{args.inspect}) to #{@obj.inspect}"
-      @obj.send(meth, *args, &block).petra
+      value = @obj.send(meth, *args, &block)
+
+      # Only wrap the result in another petra proxy if it's allowed by the application's configuration
+      value.petra.send(:object_config, :proxy_instances, meth.to_s) ? value.petra : value
     end
 
     #
@@ -41,18 +44,18 @@ module Petra
     #                Class specific things (to be moved!)
     #----------------------------------------------------------------
 
-    #
-    # Do not wrap "to_model" in a proxy again as it will confuse certain
-    # ActiveSupport helpers
-    #
-    def to_model
-      @obj.to_model
-    end
-
     private
 
     def proxied_object
       @obj
+    end
+
+    def object_config(name, *args)
+      # If the proxied object already is a class, we don't use its class (Class)
+      # as there is a high chance nobody will ever use this object proxy on
+      # this level of meta programming
+      klass = proxied_object.is_a?(Class) ? proxied_object : proxied_object.class
+      Petra.configuration.class_configurator(klass).__passed_on_value(name, *args)
     end
   end
 end

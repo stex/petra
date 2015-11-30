@@ -6,11 +6,11 @@ module Petra
       #   actual object in the transactions' contexts.
       #
       #   Some objects are frozen by default (e.g. +nil+ or the shared instances of TrueClass and FalseClass),
-      #   for these, their id is returned.
+      #   for these, the resulting object proxy is not cached
       #
       def petra
         if frozen?
-          self
+          Petra::ObjectProxy.new(self)
         else
           @__petra_proxy ||= Petra::ObjectProxy.new(self)
         end

@@ -3,26 +3,42 @@ module Petra
     class Configurator
 
       #
-      # Generates a very basic configuration method which may be called with or
-      # without a new value.
-      # If it's called without a value, the currently set value is returned.
-      # If no value was set yet by the user, the DEFAULT value is used.
+      # Generates a very basic configuration method which accepts a
+      # block or input value (see +options+)
       #
       # @param [Object] name
       #   The configuration's name which will become the method name
       #
-      def self.base_config(name)
-        define_method name do |new_value = nil|
-          if new_value.nil?
-            value_or_default(name)
-          else
-            @options[name.to_sym] = new_value
+      # @param [Hash] options
+      #
+      # @option options [TrueClass, FalseClass] :accept_value (true)
+      #   If set to +true+, the resulting method accepts not only a block,
+      #   but also a direct value.
+      #   If both, a value and a block are given, the block takes precedence
+      #
+      def self.base_config(name, options = {})
+        accept_value = options.fetch(:accept_value, true)
+
+        if accept_value
+          define_method name do |value = nil, &proc|
+            if proc
+              __configuration[name.to_sym] = proc
+            elsif !value.nil?
+              __configuration[name.to_sym] = value
+            else
+              fail ArgumentError, 'Either a value or a configuration block have to be given.'
+            end
+          end
+        else
+          define_method name do |&proc|
+            fail(ArgumentError, 'A configuration block has to be given.') unless proc
+            __configuration[name.to_sym] = proc
           end
         end
       end
 
-      def initialize(options = {})
-        @options = options
+      def initialize
+        @options = Petra.configuration.__configuration_hash(*__namespaces).deep_dup
       end
 
       #
@@ -30,22 +46,22 @@ module Petra
       # meaning that it merges its options into the specific configuration hash
       # under a certain key
       #
-      def persist!(configuration_hash)
-        configuration_hash.merge!(namespaced_configuration)
+      def __persist!
+        Petra.configuration.__configuration_hash(*__namespaces).deep_merge!(__configuration)
       end
 
       protected
 
       #
-      # @return [Hash] the current configuration options within an
+      # @return [Array<Symbol>] the current configuration options within an
       #   optional namespace chain, mainly to be merged into a global
       #
-      def namespaced_configuration
-
+      def __namespaces
+        not_implemented
       end
 
-      def value_or_default(name)
-        @options.fetch(name.to_sym, DEFAULTS[name.to_sym])
+      def __configuration
+        @options
       end
 
     end

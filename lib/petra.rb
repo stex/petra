@@ -6,12 +6,16 @@ module Petra
     File.expand_path(File.join(File.dirname(__FILE__), '..'))
   end
 
+  #----------------------------------------------------------------
+  #                        Configuration
+  #----------------------------------------------------------------
+
   def self.configuration
     @configuration ||= Petra::Configuration::Base.new
   end
 
-  def self.configure
-    yield configuration if block_given?
+  def self.configure(&proc)
+    configuration.instance_eval(&proc) if block_given?
   end
 end
 
