@@ -10,9 +10,9 @@ module Petra
       #
       def petra
         if frozen?
-          Petra::ObjectProxy.new(self)
+          Petra::ObjectProxy.for(self)
         else
-          @__petra_proxy ||= Petra::ObjectProxy.new(self)
+          @__petra_proxy ||= Petra::ObjectProxy.for(self)
         end
       end
     end

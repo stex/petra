@@ -87,3 +87,7 @@ Style/AndOr:
 # combinaton with assignments
 Style/MultilineOperationIndentation:
   Enabled: false
+
+# Allow hashes to be indented with more than 2 spaces
+Style/IndentHash:
+  Enabled: false
