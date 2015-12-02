@@ -1,35 +1,51 @@
 require 'require_all'
-require_all File.join(File.dirname(__FILE__), 'petra')
+
+# Load all of petra's core files
+autoload_all File.join(File.dirname(__FILE__), 'petra')
+
+# Load the ActiveRecord models only if ActiveRecord itself is defined.
+require_all Petra::Engine.root.join('app', 'models') if defined?(ActiveRecord::Base)
 
 module Petra
-  def self.root
-    File.expand_path(File.join(File.dirname(__FILE__), '..'))
-  end
 
-  #----------------------------------------------------------------
-  #                        Configuration
-  #----------------------------------------------------------------
-
+  #
+  # @return [Petra::Configuration::Base] petra's configuration instance
+  #
   def self.configuration
     @configuration ||= Petra::Configuration::Base.new
   end
 
+  #
+  # Executes the given block in the context of petra's configuration instance
+  #
   def self.configure(&proc)
     configuration.instance_eval(&proc) if block_given?
   end
+
+  #
+  # Forward transaction handling to the Transaction class.
+  # It's just for eye candy that you're able to use Petra.transaction
+  # instead of Petra::Transaction.start
+  #
+  # @see Petra::Transaction#start
+  #
+  def self.transaction(*args, &block)
+    Petra::Transaction.start(*args, &block)
+  end
+
+  #
+  # Logs the given +message+ if petra is configured to be verbose
+  #
+  def self.log(message, color = :yellow)
+    return unless configuration.verbose
+
+    colors = {:yellow => 33, :green => 32, :red => 31}
+    Rails.logger.debug "\e[#{colors[color.to_sym]}mPetra :: #{message}\e[0m"
+  end
+
 end
 
-# Load the ActiveRecord models in ActiveRecord itself is defined.
-# TODO: Check for these includes when setting the persistence adapter
-#       to ensure that ActiveRecord can only be used when it's available.
-if defined?(ActiveRecord::Base)
-  require_all File.join(Petra.root, 'app', 'models')
-end
-
-#----------------------------------------------------------------
-#                       Core Extensions
-#----------------------------------------------------------------
-
+# Extend the Object class to add the `petra` proxy generator
 Object.class_eval do
   include Petra::CoreExt::Object
 end

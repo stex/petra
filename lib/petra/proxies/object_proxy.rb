@@ -9,7 +9,6 @@ module Petra
     # certain behaviours that would be too complex to be put inside the configuration.
     #
     class ObjectProxy
-
       CLASS_NAMES = %w(Object).freeze
 
       def initialize(object)
@@ -60,11 +59,11 @@ module Petra
       # are most likely meant to go to the proxied object
       #
       def method_missing(meth, *args, &block)
-        puts "Proxying #{meth}(#{args.inspect}) to #{@obj.inspect}"
+        Petra.log "Proxying #{meth}(#{args.map(&:inspect).join('nn ')}) to #{@obj.inspect}"
         value = @obj.send(meth, *args, &block)
 
         # Only wrap the result in another petra proxy if it's allowed by the application's configuration
-        value.petra.send(:object_config, :proxy_instances, meth.to_s) ? value.petra : value
+        value.petra.object_config(:proxy_instances, meth.to_s) ? value.petra : value
       end
 
       #
@@ -72,11 +71,11 @@ module Petra
       # the proxied object as otherwise certain calls, especially from
       # the Rails framework itself will fail.
       #
-      def respond_to_missing?(meth, include_all = false)
+      def respond_to_missing?(meth, _ = false)
         @obj.respond_to?(meth)
       end
 
-      private
+      protected
 
       def proxied_object
         @obj
@@ -87,7 +86,7 @@ module Petra
         # as there is a high chance nobody will ever use this object proxy on
         # this level of meta programming
         klass = proxied_object.is_a?(Class) ? proxied_object : proxied_object.class
-        Petra.configuration.class_configurator(klass).__passed_on_value(name, *args)
+        Petra.configuration.class_configurator(klass).__inherited_value(name, *args)
       end
     end
   end

@@ -3,7 +3,8 @@ module Petra
     class ClassConfigurator < Configurator
 
       DEFAULTS = {
-          :wrap_resulting_instances => true
+          :proxy_instances       => false,
+          :use_specialized_proxy => true
       }.freeze
 
       #
@@ -17,12 +18,42 @@ module Petra
         super()
       end
 
+      #----------------------------------------------------------------
+      #                      Configuration Keys
+      #----------------------------------------------------------------
+
       #
       # Sets whether instances of this class should be wrapped in an ObjectProxy
       # if this is not directly done by the programmer, e.g. as return value
       # from an already proxied object.
       #
       base_config :proxy_instances
+
+      #
+      # Some classes have specialized proxy classes.
+      # If this setting is set to +false+, they will not be used in favour of ObjectProxy
+      #
+      base_config :use_specialized_proxy
+
+      #
+      # Sets the method to be used to determine the unique ID of an Object.
+      # The ID is needed to identify an object when reloading it within a transaction,
+      # so basically a key for our read set.
+      #
+      # If a block is given, the object is yielded to it, otherwise,
+      # the given method name is assumed to be an instance method in the configured class
+      #
+      base_config :id_method
+
+      #
+      # Sets the method to be used to load an object with a certain unique ID
+      # (see +:id_method+).
+      #
+      # If a block is given, the identifier is yielded to it, otherwise,
+      # the given method name is assumed to be a class method accepting
+      # a string identifier in the configured class
+      #
+      base_config :lookup_method
 
       #----------------------------------------------------------------
       #                        Helper Methods
@@ -46,25 +77,20 @@ module Petra
       # If the configuration value is a proc, it will be called
       # with the given +*args+.
       #
-      # If the last argument is a hash, it will be used options
-      # to customize this methods behaviour instead of being passed
-      # to the configuration proc
+      # If no custom configuration was set for the given +name+, the default
+      # value is returned instead.
       #
-      # @option options [Boolean] :default_fallback (true)
-      #   If set to +true+, the default value for a setting will be returned
-      #   if no class setting was set by the application.
-      #   If set to +false+, +nil+ is returned if no setting for the
-      #   given class exists.
+      # If the last argument is a hash, it will be used as options.
+      #
+      # @option options [Boolean] :execute_procs (true)
+      #   If set to +true+, Proc values will be automatically executed
+      #   with the given +*args+
       #
       def __value(name, *args)
-        options          = extract_options!(args)
-        default_fallback = options.fetch(:default_fallback, true)
+        options       = extract_options!(args)
+        execute_procs = options.fetch(:execute_procs, true)
 
-        if default_fallback
-          v = __configuration.fetch(name.to_sym, DEFAULTS[name.to_sym])
-        else
-          v = __configuration[name.to_sym]
-        end
+        v = __configuration.fetch(name.to_sym, DEFAULTS[name.to_sym])
 
         # As the setting blocks are saved as Proc objects (which are run
         # in their textual scope) and not lambdas (which are run in their caller's scope),
@@ -76,10 +102,23 @@ module Petra
         # a workaround is to rescue from possible LocalJumpErrors and simply
         # use their exit value.
         begin
-          v.is_a?(Proc) ? v.call(*args) : v
+          if execute_procs
+            v.is_a?(Proc) ? v.call(*args) : v
+          else
+            v
+          end
         rescue LocalJumpError => e
           e.exit_value
         end
+      end
+
+      #
+      # Tests whether this class configuration has a custom setting for the given key.
+      #
+      # @return [TrueClass, FalseClass] +true+ if there is a custom setting
+      #
+      def __value?(name)
+        __configuration.key?(name.to_sym)
       end
 
       #
@@ -87,46 +126,47 @@ module Petra
       # with the given name in the current class' ancestors if
       # itself does not have a custom value set.
       #
-      # Once it reaches Object, the default value is returned.
-      # BasicObject is ignored.
-      #
-      def __passed_on_value(name, *args)
-        original_options = extract_options!(args)
-        configurator     = self
-        options          = original_options.merge(:default_fallback => false)
+      def __inherited_value(name, *args)
+        configurator = self
 
-        while (klass = configurator.send(:configured_class)) != Object
-          v = configurator.__value(name, *(args + [options]))
-
-          # If there is a value for the current class, stop searching and return it
-          return v unless v.nil?
-
-          # Build a configurator for the next layer in the class hierarchy
+        # Search for a custom configuration in the current class and its superclasses
+        # until we either reach Object (the highest level when ignoring BasicObject) or
+        # found a custom setting.
+        until (klass = configurator.send(:configured_class)) == Object || configurator.__value?(name)
           configurator = Petra.configuration.class_configurator(klass.superclass)
         end
 
-        # If we made it here, our only chance on finding a value
-        # is in Object or the default value. It also means that we already
-        # have a configurator for Object set up that we can use.
-        args << original_options
+        # By now, we have either reached the Object level or found a value.
+        # In either case, we are save to retrieve it.
         configurator.__value(name, *args)
       end
 
       private
 
-
+      #
+      # @return [Class] the class which is configured by this ClassConfigurator
+      #
       def configured_class
         @class_name.camelize.constantize
       end
 
+      #
+      # @return [Array<Symbol, String>] the namespaces which will be used
+      #   when merging this class configuration into the main configuration hash
+      #
       def __namespaces
         [:models, @class_name]
       end
 
+      #
+      # Removes options from the given arguments if the last element is a Hash
+      #
+      # @return [Hash] the options extracted from the given arguments or an empty
+      #   hash if there were no options given
+      #
       def extract_options!(args)
         args.last.is_a?(Hash) ? args.pop : {}
       end
-
     end
   end
 end
