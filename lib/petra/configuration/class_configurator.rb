@@ -40,7 +40,7 @@ module Petra
       # The ID is needed to identify an object when reloading it within a transaction,
       # so basically a key for our read set.
       #
-      # If a block is given, the object is yielded to it, otherwise,
+      # If a block is given, the (:base) object is yielded to it, otherwise,
       # the given method name is assumed to be an instance method in the configured class
       #
       base_config :id_method
@@ -80,17 +80,19 @@ module Petra
       # If no custom configuration was set for the given +name+, the default
       # value is returned instead.
       #
-      # If the last argument is a hash, it will be used as options.
+      # @param [Boolean] proc_expected
+      #   If set to +true+, the value is expected to be either a Proc object
+      #   or a String/Symbol which is assumed to be a method name.
+      #   If the value is something else, an Exception is thrown
       #
-      # @option options [Boolean] :execute_procs (true)
-      #   If set to +true+, Proc values will be automatically executed
-      #   with the given +*args+
+      # @param [Object] base
+      #   The base object which is used in case +mandatory_proc+ is set to +true+.
+      #   If the fetched value is a String or Symbol, it will be used as method
+      #   name in a call based on the +base+ object with +*args* as actual parameters, e.g.
+      #   base.send(:some_fetched_value, *args)
       #
-      def __value(name, *args)
-        options       = extract_options!(args)
-        execute_procs = options.fetch(:execute_procs, true)
-
-        v = __configuration.fetch(name.to_sym, DEFAULTS[name.to_sym])
+      def __value(key, *args, proc_expected: false, base: nil)
+        v = __configuration.fetch(key.to_sym, DEFAULTS[key.to_sym])
 
         # As the setting blocks are saved as Proc objects (which are run
         # in their textual scope) and not lambdas (which are run in their caller's scope),
@@ -102,10 +104,15 @@ module Petra
         # a workaround is to rescue from possible LocalJumpErrors and simply
         # use their exit value.
         begin
-          if execute_procs
-            v.is_a?(Proc) ? v.call(*args) : v
-          else
-            v
+          case v
+            when Proc
+              v.call(*args)
+            when String, Symbol
+              return __send_to_base(base, method: v, args: args, key: key) if proc_expected
+              v
+            else
+              __fail_for_key key, 'Value has to be either a Proc or a method name (Symbol/String)' if proc_expected
+              v
           end
         rescue LocalJumpError => e
           e.exit_value
@@ -142,6 +149,32 @@ module Petra
       end
 
       private
+
+      #
+      # Raises a Petra::ConfigurationError with information about the key that caused it and a message
+      #
+      def __fail_for_key(key, message)
+        fail Petra::ConfigurationError,
+             "The configuration '#{key}' for class '#{@class_name}' seems to be incorrect: #{message}"
+      end
+
+      #
+      # Tries to .send() the given +method+ to the +base+ object.
+      # Exceptions are raised when no base was given or the given base does not respond to the given method.
+      #
+      def __send_to_base(base, method:, key:, args: [])
+        fail ArgumentError, "No base object to send ':#{method}' to was given" unless base
+
+        unless base.respond_to?(method.to_sym)
+          if base.is_a?(Class)
+            __fail_for_key key, ":#{method} was expected to be a class method in #{base}"
+          else
+            __fail_for_key key, ":#{method} was expected to be an instance method in #{base.class}"
+          end
+        end
+
+        base.send(method.to_sym, *args)
+      end
 
       #
       # @return [Class] the class which is configured by this ClassConfigurator

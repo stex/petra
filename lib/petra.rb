@@ -1,7 +1,7 @@
 require 'require_all'
 
 # Load all of petra's core files
-autoload_all File.join(File.dirname(__FILE__), 'petra')
+require_all File.join(File.dirname(__FILE__), 'petra')
 
 # Load the ActiveRecord models only if ActiveRecord itself is defined.
 require_all Petra::Engine.root.join('app', 'models') if defined?(ActiveRecord::Base)
