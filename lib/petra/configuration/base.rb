@@ -7,6 +7,10 @@ module Petra
           :verbose => false
       }.freeze
 
+      #----------------------------------------------------------------
+      #                       Configuration Keys
+      #----------------------------------------------------------------
+
       #
       # Sets the adapter to be used as transaction persistence adapter.
       #
@@ -36,6 +40,10 @@ module Petra
         end
         __config_or_default(:verbose)
       end
+
+      #----------------------------------------------------------------
+      #                         Helper Methods
+      #----------------------------------------------------------------
 
       #
       # Executes the given block in the context of a ClassConfigurator to

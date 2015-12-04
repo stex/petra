@@ -30,7 +30,7 @@ module Petra
   # @see Petra::Transaction#start
   #
   def self.transaction(*args, &block)
-    Petra::Transaction.start(*args, &block)
+    Petra::Components::Transaction.start(*args, &block)
   end
 
   #
@@ -39,7 +39,7 @@ module Petra
   def self.log(message, color = :yellow)
     return unless configuration.verbose
 
-    colors = {:yellow => 33, :green => 32, :red => 31}
+    colors = {:light_gray => 90, :yellow => 33, :green => 32, :red => 31}
     Rails.logger.debug "\e[#{colors[color.to_sym]}mPetra :: #{message}\e[0m"
   end
 

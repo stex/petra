@@ -11,10 +11,6 @@ module Petra
     class ObjectProxy
       CLASS_NAMES = %w(Object).freeze
 
-      def initialize(object)
-        @obj = object
-      end
-
       #
       # Determines the available object proxy classes and the ruby classes they
       # can be used for. All classes in the Petra::Proxies namespace are automatically
@@ -39,6 +35,15 @@ module Petra
       # its superclasses are automatically tested.
       #
       def self.for(object)
+        # If the given object is configured not to use a possibly existing
+        # specialized proxy (e.g. the ActiveRecord::Base proxy), we simply
+        # build a default ObjectProxy for it.
+        default_proxy = ObjectProxy.new(object)
+        return default_proxy unless inherited_config_for(object, :use_specialized_proxy)
+
+        # Otherwise, we search for a specialized proxy for the object's class
+        # and its superclasses until we either find one or reach the
+        # default ObjectProxy
         klass = object.is_a?(Class) ? object : object.class
         klass = klass.superclass until available_proxies.key?(klass.to_s)
         available_proxies[klass.to_s].constantize.new(object)
@@ -59,7 +64,7 @@ module Petra
       # are most likely meant to go to the proxied object
       #
       def method_missing(meth, *args, &block)
-        Petra.log "Proxying #{meth}(#{args.map(&:inspect).join('nn ')}) to #{@obj.inspect}"
+        Petra.log "Proxying #{meth}(#{args.map(&:inspect).join('nn ')}) to #{@obj.inspect}", :light_gray
         value = @obj.send(meth, *args, &block)
 
         # Only wrap the result in another petra proxy if it's allowed by the application's configuration
@@ -70,6 +75,7 @@ module Petra
       # It is necessary to forward #respond_to? queries to
       # the proxied object as otherwise certain calls, especially from
       # the Rails framework itself will fail.
+      # Hidden methods are ignored.
       #
       def respond_to_missing?(meth, _ = false)
         @obj.respond_to?(meth)
@@ -77,16 +83,35 @@ module Petra
 
       protected
 
+      def initialize(object)
+        @obj = object
+      end
+
+      #
+      # @return [Object] the proxied object
+      #
       def proxied_object
         @obj
       end
 
-      def object_config(name, *args)
+      #
+      # Retrieves a configuration value with the given name respecting
+      # custom configurations made for its class (or class family)
+      #
+      def self.inherited_config_for(object, name, *args)
         # If the proxied object already is a class, we don't use its class (Class)
         # as there is a high chance nobody will ever use this object proxy on
         # this level of meta programming
-        klass = proxied_object.is_a?(Class) ? proxied_object : proxied_object.class
+        klass = object.is_a?(Class) ? object : object.class
         Petra.configuration.class_configurator(klass).__inherited_value(name, *args)
+      end
+
+      #
+      # @see #inherited_config_for, the proxied object is automatically passed in
+      #    as first parameter
+      #
+      def object_config(name, *args)
+        self.class.inherited_config_for(proxied_object, name, *args)
       end
     end
   end
