@@ -4,7 +4,9 @@ module Petra
 
       DEFAULTS = {
           :proxy_instances       => false,
-          :use_specialized_proxy => true
+          :use_specialized_proxy => true,
+          :id_method             => :object_id,
+          :lookup_method         => ->(id) { ObjectSpace._id2ref(id) }
       }.freeze
 
       #

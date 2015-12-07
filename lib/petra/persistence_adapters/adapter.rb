@@ -7,24 +7,12 @@ module Petra
     #
     class Adapter
 
-      def initialize(transaction_id:)
-        @transaction_id = transaction_id
-      end
-
       #
-      # Persists the current transaction section.
-      # This usually happens after executing the block given to Petra::Transaction.start
+      # Persists the transaction steps which happened after
+      # the last changes were persisted.
       #
-      def persist_section!
+      def persist
         not_implemented
-      end
-
-      def add_to_read_set
-
-      end
-
-      def add_to_write_set
-
       end
 
     end

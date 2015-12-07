@@ -91,3 +91,8 @@ Style/MultilineOperationIndentation:
 # Allow hashes to be indented with more than 2 spaces
 Style/IndentHash:
   Enabled: false
+
+# Allow rescuing from the exception class, so a Transaction may fail if there is something
+# on a lower level than a StandardError is raised. We are re-raising them anyway.
+Lint/RescueException:
+  Enabled: false
