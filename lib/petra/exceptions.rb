@@ -15,7 +15,7 @@ module Petra
 
   # An error class which is never passed on out of petra.
   # It is used to cause a rollback for the currently active petra transaction
-  class RollBack < PetraError; end
+  class Rollback < PetraError; end
 
   # See +Rollback+, this error class is used to perform a commit
   # TODO: See if this could be done using a ".commit" on the block resulting from a transaction instead

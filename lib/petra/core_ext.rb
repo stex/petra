@@ -8,11 +8,16 @@ module Petra
       #   Some objects are frozen by default (e.g. +nil+ or the shared instances of TrueClass and FalseClass),
       #   for these, the resulting object proxy is not cached
       #
-      def petra
+      def petra(inherited: false, configuration_args: [])
+        # Do not proxy inherited objects if their configuration prohibits it.
+        if inherited && !Petra::Proxies::ObjectProxy.inherited_config_for(self, :proxy_instances, *configuration_args)
+          return self
+        end
+
         if frozen?
           Petra::Proxies::ObjectProxy.for(self)
         else
-          @__petra_proxy ||= Petra::Proxies::ObjectProxy.for(self)
+          @__petra_proxy ||= Petra::Proxies::ObjectProxy.for(self, inherited: inherited)
         end
       end
     end

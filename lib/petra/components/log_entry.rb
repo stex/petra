@@ -10,6 +10,17 @@ module Petra
     #
     class LogEntry
 
+      attr_accessor :savepoint
+      attr_accessor :transaction_identifier
+
+      # The method which was used to perform the changes, e.g. "save"
+      attr_accessor :method
+
+      # Identifies the object the changes were performed on,
+      # e.g. "User", 1 for @user.save
+      attr_accessor :object_class
+      attr_accessor :object_id
+
       def initialize(**options)
 
       end

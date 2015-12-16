@@ -23,24 +23,27 @@ module Petra
   end
 
   #
-  # Forward transaction handling to the Transaction class.
-  # It's just for eye candy that you're able to use Petra.transaction
-  # instead of Petra::Transaction.start
+  # Forward transaction handling to the TransactionManager class
   #
-  # @see Petra::Transaction#start
+  # @see Petra::Components::TransactionManager#with_transaction
   #
-  def self.transaction(*args, &block)
-    Petra::Components::Transaction.start(*args, &block)
+  def self.transaction(identifier: SecureRandom.uuid, &block)
+    Petra::Components::TransactionManager.with_transaction(identifier: identifier, &block)
+  end
+
+  #
+  # @return [Petra::Components::TransactionManager, NilClass]
+  #
+  def transaction_manager
+    Petra::Components.TransactionManager.instance
   end
 
   #
   # Logs the given +message+ if petra is configured to be verbose
   #
-  def self.log(message, color = :yellow)
+  def self.log(*args)
     return unless configuration.verbose
-
-    colors = {:light_gray => 90, :yellow => 33, :green => 32, :red => 31}
-    Rails.logger.debug "\e[#{colors[color.to_sym]}mPetra :: #{message}\e[0m"
+    Petra::Debug.log(*args)
   end
 
 end

@@ -4,9 +4,12 @@ module Petra
 
       DEFAULTS = {
           :proxy_instances       => false,
+          :mixin_module_proxies  => true,
           :use_specialized_proxy => true,
           :id_method             => :object_id,
-          :lookup_method         => ->(id) { ObjectSpace._id2ref(id) }
+          :lookup_method         => ->(id) { ObjectSpace._id2ref(id) },
+          :attr_readers          => false,
+          :attr_writers          => false
       }.freeze
 
       #
@@ -30,6 +33,13 @@ module Petra
       # from an already proxied object.
       #
       base_config :proxy_instances
+
+      #
+      # Sets whether ObjectProxies should be extended with possibly existing
+      # ModuleProxy modules. This is used mainly for +Enumerable+, but you may want
+      # to define your own helper modules.
+      #
+      base_config :mixin_module_proxies
 
       #
       # Some classes have specialized proxy classes.
@@ -57,6 +67,12 @@ module Petra
       #
       base_config :lookup_method
 
+      base_config :attr_readers
+
+      base_config :attr_writers
+
+
+
       #----------------------------------------------------------------
       #                        Helper Methods
       #----------------------------------------------------------------
@@ -71,7 +87,7 @@ module Petra
       #   and load a possibly already existing configuration
       #
       def self.for_class(klass)
-        new(klass.to_s.camelize)
+        new(klass.to_s)
       end
 
       #
@@ -181,8 +197,19 @@ module Petra
       #
       # @return [Class] the class which is configured by this ClassConfigurator
       #
+      # Even though ruby class should only contain module separators (::) and camel case words,
+      # there might be (framework) class names which do not comply to this.
+      # An example would be ActiveRecord's Relation class which seems to be specific
+      # for each model class it is used on.
+      #
+      # Example: User.all #=> <User::ActiveRecord_Relation...>
+      #
+      # Therefore, we first try to camelize the given class name and if that
+      # does not lead us to a valid constant name, we try to pass in the
+      # @class_name as is and raise possible errors.
+      #
       def configured_class
-        @class_name.camelize.constantize
+        @class_name.camelize.safe_constantize || @class_name.constantize
       end
 
       #

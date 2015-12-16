@@ -46,6 +46,21 @@ module Petra
       #----------------------------------------------------------------
 
       #
+      # A shortcut method to set +proxy_instances+ for multiple classes at once
+      # without having to +configure_class+ for each one.
+      #
+      # @example
+      #     proxy_class_instances 'Array', 'Enumerator', Hash
+      #
+      def proxy_class_instances(*class_names)
+        class_names.each do |klass|
+          configure_class(klass) do
+            proxy_instances true
+          end
+        end
+      end
+
+      #
       # Executes the given block in the context of a ClassConfigurator to
       # configure petra's behaviour for a certain model/class
       #

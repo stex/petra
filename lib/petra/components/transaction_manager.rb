@@ -9,12 +9,18 @@ module Petra
     # are either persisted or otherwise finished, it is removed again to (more or less)
     # ensure thread safety.
     #
-    module TransactionManager
+    class TransactionManager
 
       #
       # Performs the given block on the current instance of TransactionManager.
       # For nested transactions, the outer transaction manager is re-used,
       # for outer transactions, a new manager is created.
+      #
+      # Once all running transactions either failed or were committed/persisted,
+      # the transaction manager instance is removed from the thread local space again.
+      #
+      # @todo: See if that is still a good practise when it comes to offering
+      #        further actions through exception callbacks
       #
       def self.within_instance(&block)
         instance = Thread.current[:__petra_transaction_manager] ||= TransactionManager.new
@@ -25,6 +31,14 @@ module Petra
             Thread.current[:__petra_transaction_manager] = nil
           end
         end
+      end
+
+      #
+      # @return [Petra::Components::TransactionManager, NilClass] the currently active TransactionManager
+      #   if there is at least one running transaction.
+      #
+      def self.instance
+        Thread.current[:__petra_transaction_manager] # fail(Petra::StandardError, 'There are no running transactions')
       end
 
       def initialize
@@ -80,6 +94,7 @@ module Petra
       def self.with_transaction(identifier: SecureRandom.uuid)
         within_instance do
           begin
+            Petra.log "Starting transaction #{identifier}", :green
             transaction = begin_transaction(identifier)
             yield
           rescue Petra::Rollback => error
@@ -92,7 +107,7 @@ module Petra
             # If another exception happened, we perform a rollback on the current
             # transaction section and raise the exception again so a possible
             # outer transaction may handle it as well.
-            rollback_transaction
+            reset_transaction
             raise
           ensure
             # If we made it through the transaction section without raising
@@ -102,7 +117,7 @@ module Petra
             # TODO: See if this behaviour could cause trouble
             unless error
               begin
-                persist_transaction
+                persist_transaction unless transaction.committed?
               rescue Exception
                 transaction.rollback unless transaction.persisted?
                 raise
