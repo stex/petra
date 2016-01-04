@@ -16,13 +16,20 @@ module Petra
       # can be used for. All classes in the Petra::Proxies namespace are automatically
       # recognized as long as they define a CLASS_NAMES constant.
       #
+      # If multiple proxies specify the same class name, the last one by sorting wins.
+      #
       # @return [Hash] The available proxy classes in the format ("ClassName" => "ProxyClassName")
       #
       def self.available_class_proxies
         @class_proxies ||= (Petra::Proxies.constants).each_with_object({}) do |c, h|
           klass = Petra::Proxies.const_get(c)
+          # Skip non-class constants (this includes modules)
           next unless klass.is_a?(Class)
+          # Skip every class which is not an ObjectProxy. There shouldn't be any
+          # in this namespace, but you never know...
           next unless klass <= Petra::Proxies::ObjectProxy
+          # Skip proxy classes which do not specify which classes
+          # they were built for
           next unless klass.const_defined?(:CLASS_NAMES)
 
           klass.const_get(:CLASS_NAMES).each { |n| h[n] = "Petra::Proxies::#{c}" }
@@ -91,8 +98,10 @@ module Petra
       # are most likely meant to go to the proxied object
       #
       def method_missing(meth, *args, &block)
+        handle_attribute_changes(meth, *args)
+
         # Only wrap the result in another petra proxy if it's allowed by the application's configuration
-        @obj.send(meth, *args, &block).petra(inherited: true, configuration_args: [meth.to_s]).tap do |o|
+        proxied_object.public_send(meth, *args, &block).petra(inherited: true, configuration_args: [meth.to_s]).tap do |o|
           if o.is_a?(Petra::Proxies::ObjectProxy)
             Petra.log "Proxying #{meth}(#{args.map(&:inspect).join(', ')}) to #{@obj.inspect} #=> #{o.class}"
           end
@@ -111,6 +120,54 @@ module Petra
 
       protected
 
+      #
+      # Sets the given attribute to the given value
+      #
+      # @param [String, Symbol] attribute
+      #   The attribute name. The proxied object is expected to have a corresponding public setter method
+      #
+      # @param [Object] new_value
+      #
+      def __set_attribute(attribute, new_value)
+        public_send("#{attribute}=", new_value)
+      end
+
+      #
+      # Logs changes made to attributes of the proxied object
+      #
+      def handle_attribute_changes(method_name, *args)
+        # If the given method is none of the classes attribute writers, we do not have to
+        # handle an attribute change.
+        # As calling a superclass method in ruby does not cause method calls within this method
+        # to be called within the superclass context, the correct (= the child class') attribute
+        # detectors are ran.
+        return unless __attribute_writer?(method_name)
+
+        # Remove a possible "=" at the end of the setter method name
+        attribute_name = method_name
+        attribute_name = method_name[0..-2] if method_name =~ /^.*=$/
+
+        # As there might not be a corresponding getter, our fallback value for
+        # the old attribute value is +nil+. TODO: See if this causes unexpected behaviour
+        old_value      = nil
+        old_value      = proxied_object.send(attribute_name) if __attribute_reader?(attribute_name)
+
+        # As we currently only handle simple setters, we expect the first given argument
+        # to be the new attribute value.
+        new_value      = args.first
+
+        transaction.log_attribute_change(self, attribute: attribute_name, old_value: old_value, new_value: new_value)
+      end
+
+      #
+      # As it might happen that a custom proxy has to be defined for behaviour
+      # introduced to different classes as an included module (an example would be Enumerable),
+      # it has to be possible to define an equivalent to object proxies for them.
+      # This function inspects all modules which were previously included into
+      # the proxied object's singleton class and automatically adds matching module proxies.
+      #
+      # Please take a look at Petra::Proxies::EnumerableProxy for an example module proxy
+      #
       def mixin_module_proxies!
         # Neither symbols nor fixnums may have singleton classes, see the corresponding Kernel method
         return if proxied_object.is_a?(Fixnum) || proxied_object.is_a?(Symbol)
@@ -146,6 +203,20 @@ module Petra
       end
 
       #
+      # @return [Boolean] +true+ if the proxied object is a class
+      #
+      def class_proxy?
+        proxied_object.is_a?(Class)
+      end
+
+      #
+      # @return [Petra::Components::Transaction] the currently active transaction
+      #
+      def transaction
+        Petra.transaction_manager.current_transaction
+      end
+
+      #
       # Retrieves a configuration value with the given name respecting
       # custom configurations made for its class (or class family)
       #
@@ -163,6 +234,21 @@ module Petra
       #
       def object_config(name, *args)
         self.class.inherited_config_for(proxied_object, name, *args)
+      end
+
+      #
+      # Checks whether the given method name is part of the configured attribute reader
+      # methods within the currently proxied class
+      #
+      def __attribute_reader?(method_name)
+        object_config(:attr_readers).map(&:to_s).include?(method_name.to_s)
+      end
+
+      #
+      # @see #__attribute_reader?
+      #
+      def __attribute_writer?(method_name)
+        object_config(:attr_writers).map(&:to_s).include?(method_name.to_s)
       end
     end
   end

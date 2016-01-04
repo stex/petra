@@ -18,6 +18,7 @@ module Petra
 
       # Identifies the object the changes were performed on,
       # e.g. "User", 1 for @user.save
+      # The object class is also needed to load the corresponding class configuration
       attr_accessor :object_class
       attr_accessor :object_id
 

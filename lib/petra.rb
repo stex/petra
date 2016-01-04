@@ -34,8 +34,8 @@ module Petra
   #
   # @return [Petra::Components::TransactionManager, NilClass]
   #
-  def transaction_manager
-    Petra::Components.TransactionManager.instance
+  def self.transaction_manager
+    Petra::Components::TransactionManager.instance
   end
 
   #

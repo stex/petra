@@ -104,9 +104,9 @@ module Petra
           rescue Petra::Reset => error
             reset_transaction
           rescue Exception => error
-            # If another exception happened, we perform a rollback on the current
-            # transaction section and raise the exception again so a possible
-            # outer transaction may handle it as well.
+            # If another exception happened, we perform a complete transaction reset (for now)
+            # and raise the exception again so a possible outer transaction may handle it as well.
+            # TODO: this might be changed to only trigger a rollback on the current transaction section
             reset_transaction
             raise
           ensure
@@ -129,7 +129,7 @@ module Petra
         identifier
       end
 
-      def persistence
+      def persistence_adapter
         @persistence_adapter ||= Petra.configuration.persistence_adapter.new
       end
 

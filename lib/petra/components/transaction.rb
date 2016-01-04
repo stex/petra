@@ -2,17 +2,44 @@ module Petra
   module Components
     class Transaction
 
+      attr_reader :identifier
       attr_reader :persisted
       attr_reader :committed
 
       alias_method :persisted?, :persisted
       alias_method :committed?, :committed
 
+      delegate :log_attribute_change, :to => :current_section
+
       def initialize(identifier:)
         @identifier = identifier
         @persisted  = false
         @committed  = false
       end
+
+      #----------------------------------------------------------------
+      #                          Log Entries
+      #----------------------------------------------------------------
+
+
+
+      #----------------------------------------------------------------
+      #                           Sections
+      #----------------------------------------------------------------
+
+      def current_section
+        @section ||= Petra::Components::Section.new(self).tap do |s|
+          @sections << s
+        end
+      end
+
+      def sections
+        @sections ||= []
+      end
+
+      #----------------------------------------------------------------
+      #                        Transaction Handling
+      #----------------------------------------------------------------
 
       #
       # Tries to commit the current transaction
@@ -48,7 +75,7 @@ module Petra
       private
 
       def persistence_adapter
-
+        Petra.transaction_manager.persistence_adapter
       end
 
     end

@@ -8,8 +8,8 @@ module Petra
           :use_specialized_proxy => true,
           :id_method             => :object_id,
           :lookup_method         => ->(id) { ObjectSpace._id2ref(id) },
-          :attr_readers          => false,
-          :attr_writers          => false
+          :attr_readers          => [],
+          :attr_writers          => []
       }.freeze
 
       #
@@ -67,11 +67,15 @@ module Petra
       #
       base_config :lookup_method
 
+      #
+      # Defines an array of attribute reader methods in the configured class
+      #
       base_config :attr_readers
 
+      #
+      # Defines a list of attribute writer methods in the configured class
+      #
       base_config :attr_writers
-
-
 
       #----------------------------------------------------------------
       #                        Helper Methods
@@ -155,7 +159,7 @@ module Petra
         configurator = self
 
         # Search for a custom configuration in the current class and its superclasses
-        # until we either reach Object (the highest level when ignoring BasicObject) or
+        # until we either reach Object (the lowest level ignoring BasicObject) or
         # found a custom setting.
         until (klass = configurator.send(:configured_class)) == Object || configurator.__value?(name)
           configurator = Petra.configuration.class_configurator(klass.superclass)
