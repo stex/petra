@@ -19,8 +19,7 @@ module Petra
       # Once all running transactions either failed or were committed/persisted,
       # the transaction manager instance is removed from the thread local space again.
       #
-      # @todo: See if that is still a good practise when it comes to offering
-      #        further actions through exception callbacks
+      # @todo: See if that is still a good practise when it comes to offering further actions through exception callbacks
       #
       def self.within_instance(&block)
         instance = Thread.current[:__petra_transaction_manager] ||= TransactionManager.new

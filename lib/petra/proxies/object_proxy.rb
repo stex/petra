@@ -98,14 +98,25 @@ module Petra
       # are most likely meant to go to the proxied object
       #
       def method_missing(meth, *args, &block)
-        handle_attribute_changes(meth, *args)
-
-        # Only wrap the result in another petra proxy if it's allowed by the application's configuration
-        proxied_object.public_send(meth, *args, &block).petra(inherited: true, configuration_args: [meth.to_s]).tap do |o|
-          if o.is_a?(Petra::Proxies::ObjectProxy)
-            Petra.log "Proxying #{meth}(#{args.map(&:inspect).join(', ')}) to #{@obj.inspect} #=> #{o.class}"
-          end
+        # As calling a superclass method in ruby does not cause method calls within this method
+        # to be called within the superclass context, the correct (= the child class') attribute
+        # detectors are ran.
+        if __attribute_writer?(meth)
+          result = handle_attribute_change(meth, *args)
+        elsif __attribute_reader?(meth)
+          result = handle_attribute_read(meth, *args)
+        elsif __dynamic_attribute_reader?(meth)
+          result = handle_dynamic_attribute_read(meth, *args)
+        else
+          result = proxied_object.public_send(meth, *args, &block)
+                       .petra(inherited: true, configuration_args: [meth.to_s])
         end
+
+        Petra.log "#{object_class_or_self}##{meth}(#{args.map(&:inspect).join(', ')}) => #{result.inspect}"
+
+        result
+      rescue SystemStackError
+        raise ArgumentError, "Method '#{meth}' lead to a SystemStackError due to `method_missing`"
       end
 
       #
@@ -114,14 +125,29 @@ module Petra
       # the Rails framework itself will fail.
       # Hidden methods are ignored.
       #
-      def respond_to_missing?(meth, _ = false)
-        @obj.respond_to?(meth)
+      def respond_to_missing?(meth, *)
+        proxied_object.respond_to?(meth)
+      end
+
+      #
+      # Generates a unique attribute key based on the proxied object's class, id and a given attribute
+      #
+      # @param [String, Symbol] attribute
+      #
+      # @return [String] the generated attribute key
+      #
+      def __attribute_key(attribute)
+        id         = object_config(:id_method, proc_expected: true, base: proxied_object)
+        class_name = proxied_object.class
+        [class_name, id, attribute].map(&:to_s).join('/')
       end
 
       protected
 
       #
-      # Sets the given attribute to the given value
+      # Sets the given attribute to the given value using the default setter
+      # function `name=`. This function is just a convenience method and does not
+      # manage the actual write set. Please take a look at #handle_attribute_change instead.
       #
       # @param [String, Symbol] attribute
       #   The attribute name. The proxied object is expected to have a corresponding public setter method
@@ -133,16 +159,29 @@ module Petra
       end
 
       #
-      # Logs changes made to attributes of the proxied object
+      # A "dynamic attribute" in this case is a method which usually formats
+      # one or multiple attributes and returns the result. An example would be `#{first_name} #{last_name}`
+      # within a user class.
+      # As methods which are no simple readers/writers are usually forwarded to the proxied
+      # object, we have to make sure that these methods are called in this proxy's context, otherwise
+      # the used attribute readers would return the actual values, not the ones from our write set.
       #
-      def handle_attribute_changes(method_name, *args)
-        # If the given method is none of the classes attribute writers, we do not have to
-        # handle an attribute change.
-        # As calling a superclass method in ruby does not cause method calls within this method
-        # to be called within the superclass context, the correct (= the child class') attribute
-        # detectors are ran.
-        return unless __attribute_writer?(method_name)
+      # There is no particularly elegant way to achieve this as all forms of bind or instance_eval/exec would
+      # not set the correct self (or be incompatible), we generate a new proc from the method's source code
+      # and call it within our own context.
+      # This should therefore be only used for dynamic attributes like the above example, more complex
+      # methods might cause serious problems.
+      #
+      def handle_dynamic_attribute_read(method_name, *args)
+        method_source_proc(method_name).call(*args)
+      end
 
+      #
+      # Logs changes made to attributes of the proxied object.
+      # This means that the attribute change is documented within the currently active transaction
+      # section and added to the temporary write set.
+      #
+      def handle_attribute_change(method_name, *args)
         # Remove a possible "=" at the end of the setter method name
         attribute_name = method_name
         attribute_name = method_name[0..-2] if method_name =~ /^.*=$/
@@ -154,9 +193,26 @@ module Petra
 
         # As we currently only handle simple setters, we expect the first given argument
         # to be the new attribute value.
-        new_value      = args.first
+        new_value      = args.first #type_cast_attribute_value(attribute_name, args.first)
 
         transaction.log_attribute_change(self, attribute: attribute_name, old_value: old_value, new_value: new_value)
+
+        new_value
+      end
+
+      #
+      # Handles a getter method for the proxied object.
+      # As attribute changes are not actually forwarded to the actual object,
+      # we have to retrieve them from the current (or a past *shiver*) transaction section's
+      # write set.
+      #
+      def handle_attribute_read(method_name, *args)
+        if transaction.attribute_value?(self, attribute: method_name)
+          transaction.attribute_value(self, attribute: method_name)
+        else
+          proxied_object.send(method_name, *args)
+          # TODO: Add to read set and stuff
+        end
       end
 
       #
@@ -210,6 +266,14 @@ module Petra
       end
 
       #
+      # @return [Class] the proxied object if it is a class itself, otherwise
+      #   the proxied object's class.
+      #
+      def object_class_or_self
+        class_proxy? ? proxied_object : proxied_object.class
+      end
+
+      #
       # @return [Petra::Components::Transaction] the currently active transaction
       #
       def transaction
@@ -241,14 +305,39 @@ module Petra
       # methods within the currently proxied class
       #
       def __attribute_reader?(method_name)
-        object_config(:attr_readers).map(&:to_s).include?(method_name.to_s)
+        object_config(:attribute_reader, method_name.to_s)
       end
 
       #
       # @see #__attribute_reader?
       #
       def __attribute_writer?(method_name)
-        object_config(:attr_writers).map(&:to_s).include?(method_name.to_s)
+        object_config(:attribute_writer, method_name.to_s)
+      end
+
+      #
+      # @see __#attribute_reader?
+      #
+      def __dynamic_attribute_reader?(method_name)
+        object_config(:dynamic_attribute_reader, method_name.to_s)
+      end
+
+      def method_source_proc(method_name)
+        method        = proxied_object.method(method_name.to_sym)
+        method_source = method.source.lines[1..-2].join
+        # TODO: method.parameters returns the required and optional parameters, these could be handed to the proc
+        Proc.new do
+          eval method_source
+        end
+      end
+
+      #
+      # Performs possible type casts on a value which is about to be set
+      # for an attribute. For general ObjectProxy instances, this is simply the identity
+      # function, but it might be overridden in more specialized proxies.
+      #
+      def type_cast_attribute_value(_attribute, value)
+        value
       end
     end
   end
