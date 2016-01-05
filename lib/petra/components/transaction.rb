@@ -21,7 +21,23 @@ module Petra
       #                          Log Entries
       #----------------------------------------------------------------
 
+      #
+      # Returns the latest value which was set for a certain object attribute.
+      # This means that all previous sections' write sets are inspected from new to old.
+      #
+      # @see Petra::Components::Section#value_for for more information
+      #
+      def attribute_value(proxy, attribute:)
+        sections.reverse.find { |s| s.value_for?(proxy, attribute: attribute) }.value_for(proxy, attribute: attribute)
+      end
 
+      #
+      # @return [Boolean] +true+ if one of the previous write sets contains a value for
+      #   the given attribute
+      #
+      def attribute_value?(proxy, attribute:)
+        sections.reverse.any? { |s| s.value_for?(proxy, attribute: attribute) }
+      end
 
       #----------------------------------------------------------------
       #                           Sections

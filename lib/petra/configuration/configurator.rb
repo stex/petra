@@ -9,16 +9,12 @@ module Petra
       # @param [Object] name
       #   The configuration's name which will become the method name
       #
-      # @param [Hash] options
-      #
-      # @option options [TrueClass, FalseClass] :accept_value (true)
+      # @param [Boolean] accept_value
       #   If set to +true+, the resulting method accepts not only a block,
       #   but also a direct value.
       #   If both, a value and a block are given, the block takes precedence
       #
-      def self.base_config(name, options = {})
-        accept_value = options.fetch(:accept_value, true)
-
+      def self.base_config(name, accept_value: true)
         if accept_value
           define_method name do |value = nil, &proc|
             if proc

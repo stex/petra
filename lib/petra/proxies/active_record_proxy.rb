@@ -45,10 +45,6 @@ module Petra
 
       end
 
-      def method_missing(meth, *args, &block)
-        super
-      end
-
       private
 
       #

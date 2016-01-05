@@ -3,13 +3,15 @@ module Petra
     class ClassConfigurator < Configurator
 
       DEFAULTS = {
-          :proxy_instances       => false,
-          :mixin_module_proxies  => true,
-          :use_specialized_proxy => true,
-          :id_method             => :object_id,
-          :lookup_method         => ->(id) { ObjectSpace._id2ref(id) },
-          :attr_readers          => [],
-          :attr_writers          => []
+          :proxy_instances          => false,
+          :mixin_module_proxies     => true,
+          :use_specialized_proxy    => true,
+          :id_method                => :object_id,
+          :lookup_method            => ->(id) { ObjectSpace._id2ref(id) },
+          :attribute_reader         => false,
+          :attribute_writer         => false,
+          :dynamic_attribute_reader => false,
+          :persistence_method       => false
       }.freeze
 
       #
@@ -68,14 +70,36 @@ module Petra
       base_config :lookup_method
 
       #
-      # Defines an array of attribute reader methods in the configured class
+      # Expects the value (or return value of a block) to be a boolean value
+      # depending on whether a method name given as argument is an attribute reader
       #
-      base_config :attr_readers
+      base_config :attribute_reader
 
       #
-      # Defines a list of attribute writer methods in the configured class
+      # Expects the value (or return value of a block) to be a boolean value
+      # depending on whether a method name given as argument is an attribute reader
       #
-      base_config :attr_writers
+      base_config :attribute_writer
+
+      #
+      # Sometimes it might be necessary to use helper methods to combine multiple attributes,
+      # e.g. `#name` for `"#{first_name} #{last_name}"`.
+      # As calling `#name` would usually be passed to the proxied objects and
+      # executed within the object's context instead of the proxy, these methods
+      # can be flagged as combined/dynamic attribute readers and will be executed within
+      # the proxy's binding.
+      # The function is expected to return a boolean value.
+      #
+      base_config :dynamic_attribute_reader
+
+      #
+      # Expects the value (or return value of a block) to be a boolean value
+      # depending on whether a method name given as argument is a method that will persist
+      # the current instance.
+      # For normal ruby objects this would be every attribute setter (as it would be persisted in
+      # the process memory), for e.g. ActiveRecord::Base instances, this is only done by update/save/...
+      #
+      base_config :persistence_method
 
       #----------------------------------------------------------------
       #                        Helper Methods

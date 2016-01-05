@@ -18,6 +18,37 @@ module Petra
       end
 
       #----------------------------------------------------------------
+      #                        Read / Write set
+      #----------------------------------------------------------------
+
+      #
+      # The write set in a section only holds the latest value for each
+      # attribute/object combination. The change history is done using log entries.
+      # Therefore, the write set is a simple hash mapping object-attribute-keys to their latest value.
+      #
+      def write_set
+        @write_set ||= {}
+      end
+
+      #
+      # @return [Object, NilClass] the value which was set for the given attribute
+      #   during this session. Please note that setting attributes to +nil+ is normal behaviour,
+      #   so please make sure you always check whether there actually is value in the write set
+      #   using #value_for?
+      #
+      def value_for(proxy, attribute:)
+        write_set[proxy.__attribute_key(attribute)]
+      end
+
+      #
+      # @return [Boolean] +true+ if this section's write set contains a value
+      #   for the given attribute (if a new value was set during this section)
+      #
+      def value_for?(proxy, attribute:)
+        write_set.has_key?(proxy.__attribute_key(attribute))
+      end
+
+      #----------------------------------------------------------------
       #                         Log Entries
       #----------------------------------------------------------------
 
@@ -39,6 +70,10 @@ module Petra
       #
       def log_attribute_change(proxy, attribute:, old_value:, new_value:)
         return if old_value == new_value
+
+        # Replace any existing value for the current attribute in the
+        # memory write set with the new value
+        add_to_write_set(proxy, attribute, new_value)
 
         Petra.log "Logged attribute change (#{old_value} => #{new_value})", :yellow
       end
@@ -67,12 +102,21 @@ module Petra
 
       #
       # Persists the current section
+      # TODO: Only persist attribute changes for objects which called a persisting method.
+      # TODO: To clarify: Only persist changes that happened before the persistence method was called.
       #
       def persist!
 
       end
 
       private
+
+      #
+      # Sets a new value for the given attribute in this section's write set
+      #
+      def add_to_write_set(proxy, attribute, value)
+        write_set[proxy.__attribute_key(attribute)] = value
+      end
 
       #
       # Builds the next savepoint name based on the transaction identifier and a version number
