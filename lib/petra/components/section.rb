@@ -8,6 +8,7 @@ module Petra
       def initialize(transaction, savepoint: nil)
         @transaction = transaction
         @savepoint   = savepoint || next_savepoint_name
+        load_persisted_log_entries
       end
 
       #
@@ -15,6 +16,10 @@ module Petra
       #
       def savepoint_version
         savepoint.split('/')[1].to_i
+      end
+
+      def persisted?
+        !!@persisted
       end
 
       #----------------------------------------------------------------
@@ -53,6 +58,17 @@ module Petra
       #----------------------------------------------------------------
 
       #
+      # @return [Array<Petra::Components::LogEntry>]
+      #
+      def log_entries
+        @log_entries ||= []
+      end
+
+      def log_entries_for(proxy)
+        log_entries.select { |e| e.for_object?(proxy.__object_key) }
+      end
+
+      #
       # Generates a log entry for an attribute change in a certain object.
       # If old and new value are the same, no log entry is created.
       #
@@ -68,12 +84,21 @@ module Petra
       # @param [Object] new_value
       #   The attribute's new value
       #
-      def log_attribute_change(proxy, attribute:, old_value:, new_value:)
+      # @param [String, Symbol] method
+      #   The method which was used to change the attribute
+      #
+      def log_attribute_change(proxy, attribute:, old_value:, new_value:, method: nil)
         return if old_value == new_value
 
         # Replace any existing value for the current attribute in the
         # memory write set with the new value
         add_to_write_set(proxy, attribute, new_value)
+        add_log_entry(proxy,
+                      attribute: attribute,
+                      method:    method,
+                      kind:      'attribute_change',
+                      old_value: old_value,
+                      new_value: new_value)
 
         Petra.log "Logged attribute change (#{old_value} => #{new_value})", :yellow
       end
@@ -83,8 +108,18 @@ module Petra
       # written to a shared memory. This might simply be the process memory for normal ruby objects,
       # but might also be a call to save() or update() for ActiveRecord::Base instances.
       #
-      def log_object_persistence
-
+      # @param [Petra::Components::ObjectProxy] proxy
+      #   The proxy which received the method call
+      #
+      # @param [String, Symbol] method
+      #   The method which caused the persistence change
+      #
+      def log_object_persistence(proxy, method: nil)
+        log_entries_for(proxy).each(&:mark_as_object_persisted!)
+        add_log_entry(proxy,
+                      method:           method,
+                      kind:             'object_persistence',
+                      object_persisted: true)
       end
 
       #
@@ -101,15 +136,46 @@ module Petra
       #----------------------------------------------------------------
 
       #
-      # Persists the current section
-      # TODO: Only persist attribute changes for objects which called a persisting method.
-      # TODO: To clarify: Only persist changes that happened before the persistence method was called.
+      # Persists the current section (resp. enqueues it to be persisted)
       #
-      def persist!
-
+      def enqueue_for_persisting!
+        log_entries.each(&:enqueue_for_persisting!)
       end
 
       private
+
+      def add_log_entry(proxy, object_persisted: false, **options)
+        attribute     = options.delete(:attribute)
+        attribute_key = attribute && proxy.__attribute_key(attribute)
+
+        entry = Petra::Components::LogEntry.new(self,
+                                                transaction_identifier: transaction.identifier,
+                                                savepoint:              savepoint,
+                                                attribute_key:          attribute_key,
+                                                object_key:             proxy.__object_key,
+                                                object_persisted:       object_persisted,
+                                                transaction_persisted:  persisted?,
+                                                **options)
+
+        Petra.log "Added log entry: #{entry.inspect}", :red
+
+        log_entries << entry
+      end
+
+      #
+      # In case the this section is not the latest one in the current transaction,
+      # we have to load the steps previously done from the persistence value
+      #
+      # Also sets the `persisted?` flag depending on whether this section has
+      # be previously persisted or not.
+      #
+      def load_persisted_log_entries
+
+      end
+
+      def proxied_object(proxy)
+        proxy.send(:proxied_object)
+      end
 
       #
       # Sets a new value for the given attribute in this section's write set

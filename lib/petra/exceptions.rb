@@ -6,6 +6,12 @@ module Petra
   # Used whenever a configuration value differs from what petra expects it to be
   class ConfigurationError < PetraError; end
 
+  # Used for generic errors during transaction persistence
+  class PersistenceError < PetraError; end
+
+  # Thrown when a transaction should be persisted, but is locked by another instance
+  class TransactionLocked < PetraError; end
+
   #----------------------------------------------------------------
   #                     Pseudo error classes
   #----------------------------------------------------------------

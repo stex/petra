@@ -18,6 +18,8 @@ module Petra
         attributes.each do |k, v|
           __set_attribute(k, v)
         end
+
+        transaction.log_object_persistence(self, method: 'update_attributes')
       end
 
       def save(*)

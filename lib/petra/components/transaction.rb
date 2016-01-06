@@ -9,7 +9,7 @@ module Petra
       alias_method :persisted?, :persisted
       alias_method :committed?, :committed
 
-      delegate :log_attribute_change, :to => :current_section
+      delegate :log_attribute_change, :log_object_persistence, :to => :current_section
 
       def initialize(identifier:)
         @identifier = identifier
@@ -76,8 +76,10 @@ module Petra
       # Persists the current transaction section using the configured persistence adapter
       #
       def persist
-        Petra.log "Persisted transaction #{@identifier} ... I guess", :green
+        current_section.enqueue_for_persisting!
+        persistence_adapter.persist!
 
+        Petra.log "Persisted transaction #{@identifier} ... I guess", :green
         @persisted = true
       end
 

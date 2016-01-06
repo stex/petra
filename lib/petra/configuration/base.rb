@@ -3,8 +3,9 @@ module Petra
     class Base
 
       DEFAULTS = {
-          :persistence_adapter_class => 'Petra::PersistenceAdapters::Cache',
-          :verbose => false
+          :persistence_adapter_class => 'Petra::PersistenceAdapters::FileAdapter',
+          :verbose => false,
+          :storage_directory => '/tmp'
       }.freeze
 
       #----------------------------------------------------------------
@@ -21,7 +22,7 @@ module Petra
       #
       def persistence_adapter(klass = nil)
         if klass
-          class_name = "Petra::PersistenceAdapters::#{klass.to_s.camelize}".constantize.to_s
+          class_name = "Petra::PersistenceAdapters::#{klass.to_s.camelize}Adapter".constantize.to_s
           __configuration_hash[:persistence_adapter_class] = class_name
         else
           __config_or_default(:persistence_adapter_class).camelize.constantize
@@ -39,6 +40,18 @@ module Petra
           __configuration_hash[:verbose] = new_value
         end
         __config_or_default(:verbose)
+      end
+
+      #
+      # Sets/gets the directory petra may store its various files in.
+      # This currently includes lock files and the file persistence adapter
+      #
+      def storage_directory(new_value = nil)
+        if new_value
+          __configuration_hash[:lock_file_dir] = new_value
+        else
+          Pathname.new(__config_or_default(:lock_file_dir))
+        end
       end
 
       #----------------------------------------------------------------

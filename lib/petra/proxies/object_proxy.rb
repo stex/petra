@@ -130,6 +130,22 @@ module Petra
       end
 
       #
+      # Generates an ID for the proxied object based on the class configuration
+      #
+      def __object_id
+        object_config(:id_method, proc_expected: true, base: proxied_object)
+      end
+
+      #
+      # Generates a unique object key based on the proxied object's class and id
+      #
+      # @return [String] the generated object key
+      #
+      def __object_key
+        [proxied_object.class, __object_id].map(&:to_s).join('/')
+      end
+
+      #
       # Generates a unique attribute key based on the proxied object's class, id and a given attribute
       #
       # @param [String, Symbol] attribute
@@ -137,9 +153,7 @@ module Petra
       # @return [String] the generated attribute key
       #
       def __attribute_key(attribute)
-        id         = object_config(:id_method, proc_expected: true, base: proxied_object)
-        class_name = proxied_object.class
-        [class_name, id, attribute].map(&:to_s).join('/')
+        [proxied_object.class, __object_id, attribute].map(&:to_s).join('/')
       end
 
       protected
@@ -195,7 +209,8 @@ module Petra
         # to be the new attribute value.
         new_value      = args.first #type_cast_attribute_value(attribute_name, args.first)
 
-        transaction.log_attribute_change(self, attribute: attribute_name, old_value: old_value, new_value: new_value)
+        transaction.log_attribute_change(self, attribute: attribute_name, old_value: old_value,
+                                         new_value: new_value, method: method_name.to_s)
 
         new_value
       end
@@ -299,7 +314,6 @@ module Petra
       def object_config(name, *args)
         self.class.inherited_config_for(proxied_object, name, *args)
       end
-
       #
       # Checks whether the given method name is part of the configured attribute reader
       # methods within the currently proxied class
@@ -322,10 +336,15 @@ module Petra
         object_config(:dynamic_attribute_reader, method_name.to_s)
       end
 
+      #
+      # Generates a new Proc object from the source code of a given instance method
+      # of the proxied object.
+      #
       def method_source_proc(method_name)
         method        = proxied_object.method(method_name.to_sym)
         method_source = method.source.lines[1..-2].join
         # TODO: method.parameters returns the required and optional parameters, these could be handed to the proc
+        # TODO: what happens with dynamically generated methods? is there a practical way to achieve this?
         Proc.new do
           eval method_source
         end
