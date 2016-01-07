@@ -22,11 +22,26 @@ module Petra
         end
       end
 
-      def savepoints(identifier)
-        with_transaction_lock(transaction_identifier) do
-          return [] unless File.exists? storage_file_name('transactions', transaction_identifier)
-          storage_file_name('transactions', identifier).children.select(&:directory?).map do |f|
+      def savepoints(transaction)
+        with_transaction_lock(transaction.identifier) do
+          return [] unless File.exists? storage_file_name('transactions', transaction.identifier)
+          storage_file_name('transactions', transaction.identifier).children.select(&:directory?).map do |f|
             YAML.load_file(f.join('information.yml').to_s)[:savepoint]
+          end
+        end
+      end
+
+      def log_entries(section)
+        with_transaction_lock(section.transaction.identifier) do
+          section_dir = storage_file_name(*section_dirname(section))
+
+          # If the given section has never been persisted before, we don't have to
+          # search further for log entries
+          return [] unless section_dir.exist?
+
+          section_dir.children.select { |f| f.extname == '.entry' }.map do |f|
+            entry_hash = YAML.load_file(f.to_s)
+            Petra::Components::LogEntry.from_hash(section, entry_hash)
           end
         end
       end

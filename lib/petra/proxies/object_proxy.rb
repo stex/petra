@@ -94,6 +94,28 @@ module Petra
       end
 
       #
+      # Access the proxied object publicly from each petra proxy
+      #
+      # @example
+      #   user = User.petra.first
+      #   user.unproxied.first_name
+      #
+      def unproxied
+        proxied_object
+      end
+
+      #
+      # Checks whether the given attribute was altered during the current transaction.
+      # Note that an attribute counts as `altered` even if it was reset to its original
+      # value in a later transaction step.
+      #
+      # TODO: Check for dynamic attribute readers?
+      #
+      def __original_attribute?(attribute_name)
+        !transaction.attribute_value?(self, attribute: attribute_name.to_s)
+      end
+
+      #
       # Catch all methods which are not defined on this proxy object as they
       # are most likely meant to go to the proxied object
       #

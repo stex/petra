@@ -170,7 +170,12 @@ module Petra
       # be previously persisted or not.
       #
       def load_persisted_log_entries
-
+        @log_entries = Petra.transaction_manager.persistence_adapter.log_entries(self)
+        @log_entries.each do |entry|
+          next unless entry.attribute_change?
+          write_set[entry.attribute_key] = entry.new_value
+        end
+        @persisted   = @log_entries.any?
       end
 
       def proxied_object(proxy)

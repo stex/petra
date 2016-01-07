@@ -46,8 +46,8 @@ module Petra
 
       def initialize(section, **options)
         @section                    = section
-        self.savepoint              = options[:savepoint]
-        self.transaction_identifier = options[:transaction_identifier]
+        self.savepoint              = options[:savepoint] || section.savepoint
+        self.transaction_identifier = options[:transaction_identifier] || section.transaction.identifier
         self.method                 = options[:method]
         self.kind                   = options[:kind]
         self.attribute_key          = options[:attribute_key]
@@ -56,6 +56,14 @@ module Petra
         self.new_value              = options[:new_value]
         @object_persisted           = options[:object_persisted]
         @transaction_persisted      = options[:transaction_persisted]
+      end
+
+      def attribute_change?
+        kind.to_s == 'attribute_change'
+      end
+
+      def object_persistence?
+        kind.to_s == 'object_persistence'
       end
 
       def mark_as_object_persisted!
@@ -77,6 +85,10 @@ module Petra
         [:method, :kind, :attribute_key, :object_key, :old_value, :new_value].each_with_object({}) do |k, h|
           h[k] = send(k)
         end
+      end
+
+      def self.from_hash(section, hash)
+        self.new(section, hash.merge(object_persisted: true, transaction_persisted: true))
       end
 
       #

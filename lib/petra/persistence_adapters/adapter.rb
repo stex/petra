@@ -16,17 +16,6 @@ module Petra
       end
 
       #
-      # @param [Petra::Components::Transaction]_transaction
-      #   The transaction who's sections should be loaded
-      #
-      # @return [Array<Petra::Components::Section>] all already persisted sections
-      #   for the given transaction id
-      #
-      def load_sections(_transaction)
-        not_implemented
-      end
-
-      #
       # Adds the given log entry to the queue to be persisted next.
       # Fails if the queue already contains the log entry.
       #
@@ -48,10 +37,22 @@ module Petra
       end
 
       #
-      # @return [Array<String>] the names of all savepoints which were previously persisted
-      #   for the given transaction identifier
+      # @param [Petra::Components::Transaction] transaction
       #
-      def savepoints(_transaction_identifier)
+      # @return [Array<String>] the names of all savepoints which were previously persisted
+      #   for the given transaction
+      #
+      def savepoints(transaction)
+        not_implemented
+      end
+
+      #
+      # @param [Petra::Components::Section] section
+      #
+      # @return [Array<Petra::Components::LogEntry>] All log entries which were previously
+      #   persisted for the given section
+      #
+      def log_entries(section)
         not_implemented
       end
 

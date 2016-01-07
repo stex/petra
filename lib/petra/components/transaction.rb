@@ -45,12 +45,14 @@ module Petra
 
       def current_section
         @section ||= Petra::Components::Section.new(self).tap do |s|
-          @sections << s
+          sections << s
         end
       end
 
       def sections
-        @sections ||= []
+        @sections ||= persistence_adapter.savepoints(self).map do |savepoint|
+          Petra::Components::Section.new(self, savepoint: savepoint)
+        end
       end
 
       #----------------------------------------------------------------
