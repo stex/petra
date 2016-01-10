@@ -27,6 +27,13 @@ module Petra
       #----------------------------------------------------------------
 
       #
+      # Holds the values which were last read from attribute readers
+      #
+      def read_set
+        @read_set ||= {}
+      end
+
+      #
       # The write set in a section only holds the latest value for each
       # attribute/object combination. The change history is done using log entries.
       # Therefore, the write set is a simple hash mapping object-attribute-keys to their latest value.
@@ -68,6 +75,10 @@ module Petra
         log_entries.select { |e| e.for_object?(proxy.__object_key) }
       end
 
+      def log_entries_of_kind(kind)
+        log_entries.select { |e| e.kind?(kind) }
+      end
+
       #
       # Generates a log entry for an attribute change in a certain object.
       # If old and new value are the same, no log entry is created.
@@ -88,6 +99,15 @@ module Petra
       #   The method which was used to change the attribute
       #
       def log_attribute_change(proxy, attribute:, old_value:, new_value:, method: nil)
+        # Generate a read set entry when we attempt to change an attribute value for the first time.
+        # This is necessary as real attribute reads are not necessarily performed in the same section
+        # as attribute changes and persistence (e.g. #edit and #update in Rails)
+        # This has to be done even if the attribute wasn't really changed as the user most likely
+        # saw the current value and therefore decided not to change it.
+        unless value_for?(proxy, attribute: attribute)
+          log_attribute_read(proxy, attribute: attribute, new_value: old_value, method: method)
+        end
+
         return if old_value == new_value
 
         # Replace any existing value for the current attribute in the
@@ -104,6 +124,24 @@ module Petra
       end
 
       #
+      # Generates a log entry for an attribute read in a certain object.
+      #
+      # @see #log_attribute_change for parameter details
+      #
+      # TODO: Notice attribute changes and throw an exception (if wished)
+      #
+      def log_attribute_read(proxy, attribute:, new_value:, method: nil)
+        add_to_read_set(proxy, attribute, new_value)
+        add_log_entry(proxy,
+                      attribute: attribute,
+                      method:    method,
+                      kind:      'attribute_read',
+                      new_value: new_value)
+
+        Petra.log "Logged attribute read (#{attribute} => #{new_value})", :yellow
+      end
+
+      #
       # Logs the persistence of an object. This basically means that the attribute updates were
       # written to a shared memory. This might simply be the process memory for normal ruby objects,
       # but might also be a call to save() or update() for ActiveRecord::Base instances.
@@ -115,7 +153,17 @@ module Petra
       #   The method which caused the persistence change
       #
       def log_object_persistence(proxy, method: nil)
+        # All log entries for the current object prior to this persisting method
+        # have to be persisted as the object itself is.
         log_entries_for(proxy).each(&:mark_as_object_persisted!)
+
+        # All attribute reads prior to this have to be persisted
+        # as they might have had impact on the current object state.
+        # This does not only include the current object, but everything that was
+        # read until now!
+        # TODO: Could this be more intelligent?
+        log_entries_of_kind(:attribute_read).each(&:mark_as_object_persisted!)
+
         add_log_entry(proxy,
                       method:           method,
                       kind:             'object_persistence',
@@ -144,6 +192,16 @@ module Petra
 
       private
 
+      #
+      # Adds a new log entry to the current section.
+      # New log entries are not automatically persisted, this is done through #enqueue_for_persisting!
+      #
+      # @param [Petra::Components::ObjectProxy] proxy
+      #
+      # @param [Boolean] object_persisted
+      #
+      # @param [Hash] options
+      #
       def add_log_entry(proxy, object_persisted: false, **options)
         attribute     = options.delete(:attribute)
         attribute_key = attribute && proxy.__attribute_key(attribute)
@@ -157,7 +215,7 @@ module Petra
                                                 transaction_persisted:  persisted?,
                                                 **options)
 
-        Petra.log "Added log entry: #{entry.inspect}", :red
+        Petra.log "Added log entry: #{transaction.identifier}/#{savepoint}/#{attribute_key}", :yellow
 
         log_entries << entry
       end
@@ -172,10 +230,10 @@ module Petra
       def load_persisted_log_entries
         @log_entries = Petra.transaction_manager.persistence_adapter.log_entries(self)
         @log_entries.each do |entry|
-          next unless entry.attribute_change?
-          write_set[entry.attribute_key] = entry.new_value
+          write_set[entry.attribute_key] = entry.new_value if entry.attribute_change?
+          read_set[entry.attribute_key] = entry.new_value if entry.attribute_read?
         end
-        @persisted   = @log_entries.any?
+        @persisted = @log_entries.any?
       end
 
       def proxied_object(proxy)
@@ -187,6 +245,13 @@ module Petra
       #
       def add_to_write_set(proxy, attribute, value)
         write_set[proxy.__attribute_key(attribute)] = value
+      end
+
+      #
+      # @see #add_to_write_set
+      #
+      def add_to_read_set(proxy, attribute, value)
+        read_set[proxy.__attribute_key(attribute)] = value
       end
 
       #

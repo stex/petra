@@ -247,8 +247,9 @@ module Petra
         if transaction.attribute_value?(self, attribute: method_name)
           transaction.attribute_value(self, attribute: method_name)
         else
-          proxied_object.send(method_name, *args)
-          # TODO: Add to read set and stuff
+          proxied_object.send(method_name, *args).tap do |val|
+            transaction.log_attribute_read(self, attribute: method_name, new_value: val, method: method_name)
+          end
         end
       end
 
@@ -379,6 +380,26 @@ module Petra
       #
       def type_cast_attribute_value(_attribute, value)
         value
+      end
+
+      #
+      # Raises an exception if proxied object isn't a class.
+      # Currently, there is no way to specify which methods are class and instance methods
+      # in a specialized proxy, so this at least tells the developer that he did something wrong.
+      #
+      def class_method!
+        unless class_proxy?
+          fail Petra::PetraError, 'This method is meant to be used as a singleton method, not an instance method.'
+        end
+      end
+
+      #
+      # @see #class_method!
+      #
+      def instance_method!
+        if class_proxy?
+          fail Petra::PetraError, 'This method is meant to be used as an instance method only!'
+        end
       end
     end
   end

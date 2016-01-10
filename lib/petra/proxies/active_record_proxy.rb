@@ -14,6 +14,8 @@ module Petra
       delegate :to_model, :to => :proxied_object
 
       def update_attributes(attributes)
+        instance_method!
+
         # TODO: nested parameters...
         attributes.each do |k, v|
           __set_attribute(k, v)
@@ -23,28 +25,42 @@ module Petra
       end
 
       def save(*)
+        instance_method!
+      end
 
+      # Creepy!
+      def new(attributes = {})
+        class_method!
+        proxied_object.new.petra(inherited: true, configuration_args: ['new']).tap do |o|
+          # TODO: nested parameters...
+          attributes.each do |k, v|
+            o.__set_attribute(k, v)
+          end
+        end
       end
 
       # todo: forward to #new and see which attributes are set afterwards
-      def create(*args, &block)
-
+      def create(attributes = {})
+        class_method!
+        new(attributes).tap do |o|
+          transaction.log_object_persistence(o, method: 'create')
+        end
       end
 
       def destroy
-
+        instance_method!
       end
 
       def new_record?
-
+        instance_method!
       end
 
       def persisted?
-
+        instance_method!
       end
 
       def destroyed?
-
+        instance_method!
       end
 
       private

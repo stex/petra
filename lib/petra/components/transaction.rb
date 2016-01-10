@@ -9,7 +9,7 @@ module Petra
       alias_method :persisted?, :persisted
       alias_method :committed?, :committed
 
-      delegate :log_attribute_change, :log_object_persistence, :to => :current_section
+      delegate :log_attribute_change, :log_object_persistence, :log_attribute_read, :to => :current_section
 
       def initialize(identifier:)
         @identifier = identifier

@@ -59,11 +59,15 @@ module Petra
       end
 
       def attribute_change?
-        kind.to_s == 'attribute_change'
+        kind?(:attribute_change)
+      end
+
+      def attribute_read?
+        kind?(:attribute_read)
       end
 
       def object_persistence?
-        kind.to_s == 'object_persistence'
+        kind?(:object_persistence?)
       end
 
       def mark_as_object_persisted!
@@ -96,6 +100,13 @@ module Petra
       #
       def for_object?(object_key)
         self.object_key == object_key
+      end
+
+      #
+      # @return [Boolean] +true+ if this log entry is of the given kind
+      #
+      def kind?(kind)
+        self.kind.to_s == kind.to_s
       end
 
       #
