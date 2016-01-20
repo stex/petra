@@ -9,6 +9,8 @@ module Petra
     # certain behaviours that would be too complex to be put inside the configuration.
     #
     class ObjectProxy
+      include Comparable
+
       CLASS_NAMES = %w(Object).freeze
 
       #
@@ -60,12 +62,12 @@ module Petra
       # If there is no proxy for the exact class of the given +object+,
       # its superclasses are automatically tested.
       #
-      def self.for(object, inherited: false)
+      def self.for(object, inherited: false, **options)
         # If the given object is configured not to use a possibly existing
         # specialized proxy (e.g. the ActiveRecord::Base proxy), we simply
         # build a default ObjectProxy for it, but we'll still try to extend it using
         # available ModuleProxies
-        default_proxy = ObjectProxy.new(object, inherited)
+        default_proxy = ObjectProxy.new(object, inherited, **options)
         default_proxy.send :mixin_module_proxies!
         return default_proxy unless inherited_config_for(object, :use_specialized_proxy)
 
@@ -74,7 +76,7 @@ module Petra
         # default ObjectProxy
         klass = object.is_a?(Class) ? object : object.class
         klass = klass.superclass until available_class_proxies.key?(klass.to_s)
-        proxy = available_class_proxies[klass.to_s].constantize.new(object, inherited)
+        proxy = available_class_proxies[klass.to_s].constantize.new(object, inherited, **options)
 
         # If we reached Object, we might still find one or more ModuleProxy module we might
         # mix into the resulting ObjectProxy. Otherwise, the specialized proxy will most likely
@@ -89,7 +91,7 @@ module Petra
       # Do not create new proxies for already proxied objects.
       # Instead, return the current proxy object
       #
-      def petra
+      def petra(*)
         self
       end
 
@@ -130,15 +132,14 @@ module Petra
         elsif __dynamic_attribute_reader?(meth)
           result = handle_dynamic_attribute_read(meth, *args)
         else
-          result = proxied_object.public_send(meth, *args, &block)
-                       .petra(inherited: true, configuration_args: [meth.to_s])
+          result = handle_missing_method(meth, *args, &block)
         end
 
-        Petra.log "#{object_class_or_self}##{meth}(#{args.map(&:inspect).join(', ')}) => #{result.inspect}"
+        Petra.logger.debug "#{object_class_or_self}##{meth}(#{args.map(&:inspect).join(', ')}) => #{result.inspect}"
 
         result
-      rescue SystemStackError
-        raise ArgumentError, "Method '#{meth}' lead to a SystemStackError due to `method_missing`"
+      # rescue SystemStackError
+      #   raise ArgumentError, "Method '#{meth}' lead to a SystemStackError due to `method_missing`"
       end
 
       #
@@ -155,7 +156,11 @@ module Petra
       # Generates an ID for the proxied object based on the class configuration
       #
       def __object_id
-        object_config(:id_method, proc_expected: true, base: proxied_object)
+        if __new?
+          @__object_id ||= transaction.objects.next_id
+        else
+          @__object_id ||= object_config(:id_method, proc_expected: true, base: proxied_object)
+        end
       end
 
       #
@@ -178,6 +183,36 @@ module Petra
         [proxied_object.class, __object_id, attribute].map(&:to_s).join('/')
       end
 
+      #
+      # @return [Boolean] +true+ if the proxied object did not exist before the transaction started
+      #
+      def __new?
+        transaction.objects.new?(self)
+      end
+
+      #
+      # @return [Boolean] +true+ if the proxied object existed before the transaction started
+      #
+      def __existing?
+        transaction.objects.existing?(self)
+      end
+
+      #
+      # @return [Boolean] +true+ if the proxied object was created (= initialized + persisted) during
+      #   the current transaction
+      #
+      def __created?
+        transaction.objects.created?(self)
+      end
+
+      #
+      # Very simple spaceship operator based on the object key
+      # TODO: See if this causes problems when ID-ordering is expected
+      #
+      def <=>(other_proxy)
+        __object_key <=> other_proxy.__object_key
+      end
+
       protected
 
       #
@@ -195,6 +230,15 @@ module Petra
       end
 
       #
+      # Calls the given method on the proxied object and optionally
+      # wraps the result in another petra proxy
+      #
+      def handle_missing_method(method_name, *args, &block)
+        proxied_object.public_send(method_name, *args, &block)
+            .petra(inherited: true, configuration_args: [method_name.to_s])
+      end
+
+      #
       # A "dynamic attribute" in this case is a method which usually formats
       # one or multiple attributes and returns the result. An example would be `#{first_name} #{last_name}`
       # within a user class.
@@ -209,7 +253,7 @@ module Petra
       # methods might cause serious problems.
       #
       def handle_dynamic_attribute_read(method_name, *args)
-        method_source_proc(method_name).call(*args)
+        method_source_proc(method_name).(*args)
       end
 
       #
@@ -231,8 +275,11 @@ module Petra
         # to be the new attribute value.
         new_value      = args.first #type_cast_attribute_value(attribute_name, args.first)
 
-        transaction.log_attribute_change(self, attribute: attribute_name, old_value: old_value,
-                                         new_value: new_value, method: method_name.to_s)
+        transaction.log_attribute_change(self,
+                                         attribute: attribute_name,
+                                         old_value: old_value,
+                                         new_value: new_value,
+                                         method:    method_name.to_s)
 
         new_value
       end
@@ -245,6 +292,10 @@ module Petra
       #
       def handle_attribute_read(method_name, *args)
         if transaction.attribute_value?(self, attribute: method_name)
+          # As we read this attribute before, we have the value we read back then on record.
+          # Therefore, we may check if the value changed in the mean time which would invalidate
+          # the transaction (most likely)
+          transaction.verify_attribute_integrity!(self, attribute: method_name)
           transaction.attribute_value(self, attribute: method_name)
         else
           proxied_object.send(method_name, *args).tap do |val|
@@ -284,9 +335,10 @@ module Petra
         end
       end
 
-      def initialize(object, inherited = false)
-        @obj       = object
-        @inherited = inherited
+      def initialize(object, inherited = false, object_id: nil)
+        @obj         = object
+        @inherited   = inherited
+        @__object_id = object_id
       end
 
       #
@@ -309,6 +361,10 @@ module Petra
       #
       def object_class_or_self
         class_proxy? ? proxied_object : proxied_object.class
+      end
+
+      def for_class?(klass)
+        proxied_object.is_a?(klass)
       end
 
       #
@@ -337,6 +393,7 @@ module Petra
       def object_config(name, *args)
         self.class.inherited_config_for(proxied_object, name, *args)
       end
+
       #
       # Checks whether the given method name is part of the configured attribute reader
       # methods within the currently proxied class
@@ -356,7 +413,7 @@ module Petra
       # @see __#attribute_reader?
       #
       def __dynamic_attribute_reader?(method_name)
-        object_config(:dynamic_attribute_reader, method_name.to_s)
+        !class_proxy? && object_config(:dynamic_attribute_reader, method_name.to_s)
       end
 
       #

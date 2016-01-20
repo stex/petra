@@ -3,9 +3,9 @@ module Petra
     class Base
 
       DEFAULTS = {
-          :persistence_adapter_class => 'Petra::PersistenceAdapters::FileAdapter',
-          :verbose => false,
-          :storage_directory => '/tmp'
+          :persistence_adapter_name => 'file',
+          :log_level                => 'debug',
+          :storage_directory        => '/tmp'
       }.freeze
 
       #----------------------------------------------------------------
@@ -14,43 +14,46 @@ module Petra
 
       #
       # Sets the adapter to be used as transaction persistence adapter.
-      #
-      # Currently, the only options are "Cache" and "ActiveRecord"
+      # An adapter has to be registered before it may be used (see Adapter)
       #
       # @return [Class] the persistence adapter class used for storing transaction values.
       #   Defaults to use to the cache adapter
       #
-      def persistence_adapter(klass = nil)
-        if klass
-          class_name = "Petra::PersistenceAdapters::#{klass.to_s.camelize}Adapter".constantize.to_s
-          __configuration_hash[:persistence_adapter_class] = class_name
+      def persistence_adapter(name = nil)
+        if name
+          unless Petra::PersistenceAdapters::Adapter.registered_adapter?(name)
+            fail Petra::ConfigurationError,
+                 "The given adapter `#{name}` hasn't been registered. " \
+                 "Valid adapters are: #{Petra::PersistenceAdapters::Adapter.registered_adapters.keys.inspect}"
+          end
+          __configuration_hash[:persistence_adapter_name] = name
         else
-          __config_or_default(:persistence_adapter_class).camelize.constantize
+          Petra::PersistenceAdapters::Adapter[__config_or_default(:persistence_adapter_name)].constantize
         end
-      rescue NameError => e
-        raise "The adapter class name 'klass' is not valid (#{e})."
-      end
-
-      #
-      # Turns petra's verbose mode on or off.
-      # If verbose is turned on, more log messages will be generated.
-      #
-      def verbose(new_value = nil)
-        unless new_value.nil?
-          __configuration_hash[:verbose] = new_value
-        end
-        __config_or_default(:verbose)
       end
 
       #
       # Sets/gets the directory petra may store its various files in.
       # This currently includes lock files and the file persistence adapter
+      # TODO: Move this to adapter configurations?
       #
       def storage_directory(new_value = nil)
         if new_value
           __configuration_hash[:lock_file_dir] = new_value
         else
           Pathname.new(__config_or_default(:lock_file_dir))
+        end
+      end
+
+      #
+      # The log level for petra. Only messages which are greater or equal to this level
+      # will be shown in the output
+      #
+      def log_level(new_value = nil)
+        if new_value
+          __configuration_hash[:log_level] = new_value.to_s
+        else
+          __config_or_default(:log_level).to_sym
         end
       end
 
@@ -92,6 +95,8 @@ module Petra
       def class_configurator(class_name)
         ClassConfigurator.for_class(class_name)
       end
+
+      alias_method :[], :class_configurator
 
       #
       # @return [Hash] the complete configuration or one of its sub-namespaces.

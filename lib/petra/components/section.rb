@@ -60,6 +60,24 @@ module Petra
         write_set.has_key?(proxy.__attribute_key(attribute))
       end
 
+      #
+      # @return [Boolean] +true+ if a new object attribute with the given name
+      #   was read during this section. Each attribute is only put into the read set once - except
+      #   for when the read value wasn't used afterwards (no persistence)
+      #
+      def read_value_for?(proxy, attribute:)
+        read_set.has_key?(proxy.__attribute_key(attribute))
+      end
+
+      #
+      # @return [Object, NilClass] the attribute value which was read from the original object
+      #   during this section or +nil+. Please check whether the attribute was read at all during
+      #   this section using #read_value_for?
+      #
+      def read_value_for(proxy, attribute:)
+        read_set[proxy.__attribute_key(attribute)]
+      end
+
       #----------------------------------------------------------------
       #                         Log Entries
       #----------------------------------------------------------------
@@ -120,7 +138,7 @@ module Petra
                       old_value: old_value,
                       new_value: new_value)
 
-        Petra.log "Logged attribute change (#{old_value} => #{new_value})", :yellow
+        Petra.logger.info "Logged attribute change (#{old_value} => #{new_value})", :yellow
       end
 
       #
@@ -138,7 +156,13 @@ module Petra
                       kind:      'attribute_read',
                       new_value: new_value)
 
-        Petra.log "Logged attribute read (#{attribute} => #{new_value})", :yellow
+        Petra.logger.info "Logged attribute read (#{attribute} => #{new_value})", :yellow
+      end
+
+      def log_object_initialization(proxy, method: nil)
+        add_log_entry(proxy,
+                      kind: 'object_initialization',
+                      method: method)
       end
 
       #
@@ -155,6 +179,7 @@ module Petra
       def log_object_persistence(proxy, method: nil)
         # All log entries for the current object prior to this persisting method
         # have to be persisted as the object itself is.
+        # This includes the object initialization log entry
         log_entries_for(proxy).each(&:mark_as_object_persisted!)
 
         # All attribute reads prior to this have to be persisted
@@ -180,17 +205,79 @@ module Petra
       end
 
       #----------------------------------------------------------------
+      #                        Object Handling
+      #----------------------------------------------------------------
+
+      #
+      # @return [Array<Petra::Proxies::ObjectProxy>] Objects that were created during this section.
+      #
+      # It does not matter whether the section was persisted or not in this case,
+      # the only condition is that the object was "object_persisted" after its initialization
+      #
+      def created_objects
+        cache_if_persisted(:created_objects) do
+          log_entries_of_kind(:object_initialization).select(&:object_persisted?).map(&:load_proxy)
+        end
+      end
+
+      #
+      # @return [Array<Petra::Proxies::ObjectProxy>] Objects which were initialized, but not
+      #   yet persisted during this section. This may only be the case for the current section
+      #
+      def initialized_objects
+        cache_if_persisted(:initialized_objects) do
+          log_entries_of_kind(:object_initialization).reject(&:object_persisted?).map(&:load_proxy)
+        end
+      end
+
+      #
+      # @see #created_objects
+      #
+      # This method will also return objects which were not yet `object_persisted`, e.g.
+      # to be used during the current transaction section
+      #
+      def initialized_or_created_objects
+        cache_if_persisted(:initialized_or_created_objects) do
+          initialized_objects + created_objects
+        end
+      end
+
+
+      #----------------------------------------------------------------
       #                         Persistence
       #----------------------------------------------------------------
+
+      #
+      # Removes all log entries and empties the read and write set.
+      # This should only be done on the current section and as long as the log
+      # entries haven't been persisted.
+      #
+      def reset!
+        fail Petra::PetraError, 'An already persisted section may not be reset' if persisted?
+        @log_entries = []
+        @read_set    = []
+        @write_set   = []
+      end
 
       #
       # Persists the current section (resp. enqueues it to be persisted)
       #
       def enqueue_for_persisting!
         log_entries.each(&:enqueue_for_persisting!)
+        @persisted = true
       end
 
       private
+
+      #
+      # Executes the block and caches its result if the current section has already
+      # been persisted (= won't change any more)
+      #
+      def cache_if_persisted(name, &block)
+        @cache ||= {}
+        return (@cache[name.to_s] ||= block.call) if persisted?
+        block.call
+      end
 
       #
       # Adds a new log entry to the current section.
@@ -215,7 +302,7 @@ module Petra
                                                 transaction_persisted:  persisted?,
                                                 **options)
 
-        Petra.log "Added log entry: #{transaction.identifier}/#{savepoint}/#{attribute_key}", :yellow
+        Petra.logger.debug "Added log entry: #{transaction.identifier}/#{savepoint}/#{attribute_key}", :yellow
 
         log_entries << entry
       end
@@ -231,7 +318,7 @@ module Petra
         @log_entries = Petra.transaction_manager.persistence_adapter.log_entries(self)
         @log_entries.each do |entry|
           write_set[entry.attribute_key] = entry.new_value if entry.attribute_change?
-          read_set[entry.attribute_key] = entry.new_value if entry.attribute_read?
+          read_set[entry.attribute_key]  = entry.new_value if entry.attribute_read?
         end
         @persisted = @log_entries.any?
       end

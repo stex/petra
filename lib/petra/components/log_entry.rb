@@ -125,7 +125,36 @@ module Petra
         Petra.transaction_manager.persistence_adapter.enqueue(self)
       end
 
+      #----------------------------------------------------------------
+      #                        Object Helpers
+      #----------------------------------------------------------------
+
+      def load_proxy
+        if kind?(:object_initialization)
+          initialize_proxy
+        else
+          restore_proxy
+        end
+      end
+
       private
+
+      #
+      # Initializes a proxy for the object which was initialized in this log entry.
+      # This is done by initializing a new object and set the old generated object_id for its proxy
+      #
+      # @return [Petra::Proxies::ObjectProxy] a proxy for a clean object (no attributes set).
+      #   Every attribute value is taken from its write set.
+      #
+      def initialize_proxy
+        klass    = object_class.constantize
+        instance = Petra.configuration[klass].__value(:init_method, proc_expected: true, base: klass)
+        Petra::Proxies::ObjectProxy.for(instance, object_id: object_id)
+      end
+
+      def restore_proxy
+        Petra.configuration[object_class]
+      end
 
       def object_key=(key)
         @object_key               = key

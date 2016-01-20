@@ -12,6 +12,8 @@ module Petra
   # Thrown when a transaction should be persisted, but is locked by another instance
   class TransactionLocked < PetraError; end
 
+  # Thrown when a read (and used) attribute changed its value externally
+  class ReadIntegrityError < PetraError; end
   #----------------------------------------------------------------
   #                     Pseudo error classes
   #----------------------------------------------------------------

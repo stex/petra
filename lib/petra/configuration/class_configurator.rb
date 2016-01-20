@@ -8,6 +8,7 @@ module Petra
           :use_specialized_proxy    => true,
           :id_method                => :object_id,
           :lookup_method            => ->(id) { ObjectSpace._id2ref(id) },
+          :init_method              => :new,
           :attribute_reader         => false,
           :attribute_writer         => ->(name) { name.last == '=' },
           :dynamic_attribute_reader => false,
@@ -68,6 +69,11 @@ module Petra
       # a string identifier in the configured class
       #
       base_config :lookup_method
+
+      #
+      # Method to initialize a new instance of the proxied class, e.g. `:new` for basic objects
+      #
+      base_config :init_method
 
       #
       # Expects the value (or return value of a block) to be a boolean value

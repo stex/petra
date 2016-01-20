@@ -7,6 +7,28 @@ module Petra
     #
     class Adapter
 
+      class << self
+        def registered_adapters
+          @adapters ||= {}
+        end
+
+        def registered_adapter(name)
+          registered_adapters[name.to_s]
+        end
+
+        def register_adapter(name, klass)
+          registered_adapters[name.to_s] = klass.to_s
+        end
+
+        def registered_adapter?(name)
+          registered_adapters.has_key?(name.to_s)
+        end
+
+        alias_method :[], :registered_adapter
+      end
+
+      #
+      # @abstract
       #
       # Persists the transaction steps which happened after
       # the last changes were persisted.
@@ -19,8 +41,6 @@ module Petra
       # Adds the given log entry to the queue to be persisted next.
       # Fails if the queue already contains the log entry.
       #
-      # @todo: Check previous sections? How to uniquely identify a log entry?
-      #
       def enqueue(log_entry)
         if queue.include?(log_entry)
           fail Petra::PersistenceError, 'A log entry can only be added to a persistence queue once'
@@ -29,6 +49,8 @@ module Petra
       end
 
       #
+      # @abstract
+      #
       # @return [Array<String>] the identifiers of all transactions which are
       #   currently persisted (>= one section finished, but not committed)
       #
@@ -36,6 +58,8 @@ module Petra
         not_implemented
       end
 
+      #
+      # @abstract
       #
       # @param [Petra::Components::Transaction] transaction
       #
@@ -47,6 +71,8 @@ module Petra
       end
 
       #
+      # @abstract
+      #
       # @param [Petra::Components::Section] section
       #
       # @return [Array<Petra::Components::LogEntry>] All log entries which were previously
@@ -56,49 +82,33 @@ module Petra
         not_implemented
       end
 
+      #
+      # Resets the given transaction, meaning that all persisted information is removed
+      #
+      def reset_transaction(_transaction)
+        not_implemented
+      end
+
       protected
 
-      def ensure_directory_existence(*path)
-        FileUtils.mkdir_p(storage_file_name(*path))
-      end
-
+      #
+      # @abstract
+      #
+      # Executes the given block after acquiring a global lock
+      #
       def with_global_lock(&block)
-        with_file_lock('global.persistence', &block)
+        not_implemented
       end
 
-      def with_transaction_lock(transaction_identifier, &block)
-        with_file_lock(transaction_identifier, &block)
-      end
-
-      def with_file_lock(filename, &block)
-        @held_file_locks ||= []
-        if @held_file_locks.include?(lock_file_name(filename))
-          block.call
-        else
-          begin
-            File.open(lock_file_name(filename), File::RDWR|File::CREAT, 0644) do |f|
-              f.flock(File::LOCK_EX)
-              @held_file_locks << lock_file_name(filename)
-              block.call
-            end
-          ensure
-            @held_file_locks.delete(lock_file_name(filename))
-          end
-        end
-      end
-
-      def storage_file_name(*parts)
-        Petra.configuration.storage_directory.join(*parts)
-      end
-
-      def lock_file_name(filename)
-        # Make sure the locks directory actually exists
-        ensure_directory_existence('locks')
-        storage_file_name('locks', "petra.#{filename}.lock")
-      end
-
-      def with_storage_file(*parts, mode: 'r', perm: 0644, &block)
-        File.open(storage_file_name(*parts), mode, perm, &block)
+      #
+      # @abstract
+      #
+      # Executes the given block after acquiring a transaction based lock,
+      # meaning that other processes which execute something in the same transaction's context
+      # have to wait / abort
+      #
+      def with_transaction_lock(_identifier, &block)
+        not_implemented
       end
 
       def queue

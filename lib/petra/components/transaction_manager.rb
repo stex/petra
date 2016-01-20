@@ -37,7 +37,7 @@ module Petra
       #   if there is at least one running transaction.
       #
       def self.instance
-        Thread.current[:__petra_transaction_manager] # fail(Petra::StandardError, 'There are no running transactions')
+        Thread.current[:__petra_transaction_manager] || fail(Petra::PetraError, 'There are no running transactions')
       end
 
       def initialize
@@ -51,7 +51,7 @@ module Petra
       # TODO: Nested transactions again, what would happen?
       #
       def reset_transaction
-        @stack.pop.reset
+        @stack.pop.reset!
       end
 
       #
@@ -61,14 +61,14 @@ module Petra
       # TODO: Can we jump to a custom savepoint? What would happen if we were using the outer transaction's data?
       #
       def rollback_transaction
-        @stack.pop.rollback
+        @stack.pop.rollback!
       end
 
       #
       # Commits the currently innermost transaction
       #
       def commit_transaction
-        @stack.pop.commit
+        @stack.pop.commit!
       end
 
       #
@@ -78,7 +78,7 @@ module Petra
       # was set using the corresponding exception class
       #
       def persist_transaction
-        @stack.pop.persist
+        @stack.pop.persist!
       end
 
       #
@@ -93,21 +93,11 @@ module Petra
       def self.with_transaction(identifier: SecureRandom.uuid)
         within_instance do
           begin
-            Petra.log "Starting transaction #{identifier}", :green
+            Petra.logger.info "Starting transaction #{identifier}", :green
             transaction = begin_transaction(identifier)
             yield
-          rescue Petra::Rollback => error
-            rollback_transaction
-          rescue Petra::Commit => error
-            commit_transaction
-          rescue Petra::Reset => error
-            reset_transaction
           rescue Exception => error
-            # If another exception happened, we perform a complete transaction reset (for now)
-            # and raise the exception again so a possible outer transaction may handle it as well.
-            # TODO: this might be changed to only trigger a rollback on the current transaction section
-            reset_transaction
-            raise
+            handle_exception(error, transaction: transaction)
           ensure
             # If we made it through the transaction section without raising
             # any exception, we simply want to persist the performed transaction steps.
@@ -144,6 +134,31 @@ module Petra
       end
 
       private
+
+      #
+      # Handles various exceptions which may occur during transaction execution
+      #
+      def handle_exception(e, transaction:)
+        case e
+          when Petra::Rollback
+            rollback_transaction
+          when Petra::Commit
+            commit_transaction
+          when Petra::Reset
+            reset_transaction
+          when Petra::ReadIntegrityError
+            reset_transaction
+            raise
+          # ActionView wraps errors inside an own error class. Therefore,
+          # we have to extract the actual exception first.
+          when -> (_) { Petra.rails? && e.is_a?(ActionView::Template::Error) }
+            handle_exception(e.original_exception, transaction: transaction)
+          else
+            # If another exception happened, we perform a transaction rollback (for now)
+            # rollback_transaction
+            raise
+        end
+      end
 
       #
       # Starts a new transaction and pushes it to the transaction stack.

@@ -11,7 +11,18 @@ module Petra
     class ActiveRecordProxy < ObjectProxy
       CLASS_NAMES = %w(ActiveRecord::Base).freeze
 
-      delegate :to_model, :to => :proxied_object
+      #
+      # When using ActiveRecord objects, we have a pretty good
+      # way of checking whether an object already existing outside the transaction
+      # or not by simply checking whether it already has an ID or not.
+      #
+      def __new?
+        !proxied_object.persisted?
+      end
+
+      #----------------------------------------------------------------
+      #                             CUD
+      #----------------------------------------------------------------
 
       def update_attributes(attributes)
         instance_method!
@@ -32,6 +43,8 @@ module Petra
       def new(attributes = {})
         class_method!
         proxied_object.new.petra(inherited: true, configuration_args: ['new']).tap do |o|
+          transaction.log_object_initialization(o)
+
           # TODO: nested parameters...
           attributes.each do |k, v|
             o.__set_attribute(k, v)
@@ -39,7 +52,6 @@ module Petra
         end
       end
 
-      # todo: forward to #new and see which attributes are set afterwards
       def create(attributes = {})
         class_method!
         new(attributes).tap do |o|
@@ -51,16 +63,77 @@ module Petra
         instance_method!
       end
 
+      #----------------------------------------------------------------
+      #                        Finding Records
+      #----------------------------------------------------------------
+
+      #
+      # Ugly wrapper around AR's #find method which allows
+      # searching for records which were created during a transaction.
+      #
+      def find(*ids)
+        class_method!
+
+        # Extract non-AR IDs. Currently, the only way to detect them is to
+        # search for the pattern "new_DIGITS" which may conflict with custom primary keys,
+        # e.g. the `friendly_id` gem
+        new_ids = ids.select { |id| id =~ /^new_\d+$/ }
+
+        # Try to look up objects which were created during this transaction and match
+        # the given IDs. This will automatically raise ActiveRecord::RecordNotFound errors
+        # if an object isn't found.
+        new_records = new_records_from_ids(new_ids)
+
+        # Fetch the records which already existed outside the transaction and
+        # add the temporary objects to the result
+        result = handle_missing_method('find', ids - new_ids) + new_records
+
+        # To emulate AR's behaviour, return the first result if we only got one.
+        result.size == 1 ? result.first : result
+      end
+
+      #----------------------------------------------------------------
+      #                        Persistence Flags
+      #----------------------------------------------------------------
+
+      #
+      # @return [Boolean] +true+ if the proxied object was initialized during the transaction
+      #   and hasn't been object persisted yet
+      #
       def new_record?
         instance_method!
+        !__existing? && !__created?
       end
 
       def persisted?
         instance_method!
+        __existing? || __created?
       end
 
       def destroyed?
         instance_method!
+      end
+
+      #----------------------------------------------------------------
+      #                     Rails' Internal Helpers
+      #----------------------------------------------------------------
+
+      #
+      # Instead of forwarding #to_model to the proxied object, we have to
+      # return the proxy to ensure that Rails' internal methods (e.g. url_for)
+      # get the correct data
+      #
+      def to_model(*)
+        self
+      end
+
+      #
+      # If the record existed before the transaction started, we may simply return its ID.
+      # Otherwise... well, we return our internal ID which isn't the best solution, but it at
+      # least allows us to work with __new? records mostly like we would with __existing?
+      #
+      def to_param
+        __existing? ? proxied_object.to_param : __object_id
       end
 
       private
@@ -103,6 +176,18 @@ module Petra
         __attribute_reader?(method_name[0..-2]) || super(method_name)
       end
 
+      #
+      # @return [Array<Petra::Proxies::ObjectProxy>] records which were created during this transaction.
+      #   The cannot be found using AR's finder methods as they are not yet persisted in the database.
+      #
+      def new_records_from_ids(ids)
+        ids.map do |new_id|
+          unless (object = transaction.objects.created(proxied_object).find { |o| o.__object_id == new_id })
+            fail ::ActiveRecord::RecordNotFound, "Couldn't find #{name} with '#{primary_key}'=#{new_id}"
+          end
+          object
+        end
+      end
     end
   end
 end
