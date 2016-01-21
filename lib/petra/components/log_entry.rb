@@ -152,6 +152,7 @@ module Petra
         Petra::Proxies::ObjectProxy.for(instance, object_id: object_id)
       end
 
+      #TODO: Was war hier geplant?!
       def restore_proxy
         Petra.configuration[object_class]
       end

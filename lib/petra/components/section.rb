@@ -159,7 +159,13 @@ module Petra
         Petra.logger.info "Logged attribute read (#{attribute} => #{new_value})", :yellow
       end
 
+      #
+      # Logs the initialization of an object
+      #
       def log_object_initialization(proxy, method: nil)
+        # Mark this object as recently initialized
+        recently_initialized_object!(proxy)
+
         add_log_entry(proxy,
                       kind: 'object_initialization',
                       method: method)
@@ -200,13 +206,32 @@ module Petra
       # Currently, this is only used with ActiveRecord::Base instances, but there might
       # be a way to handle GC with normal ruby objects (attach a handler to at least get notified).
       #
-      def log_object_destruction
+      def log_object_destruction(proxy, method: nil)
 
       end
 
       #----------------------------------------------------------------
       #                        Object Handling
       #----------------------------------------------------------------
+
+      #
+      # As objects which were initialized inside a transaction receive
+      # a temporary ID whose generation again requires knowledge about
+      # their membership regarding the below object sets leading to an
+      # infinite loop, we have to keep a temporary list of object ids (ruby)
+      # until they received their transaction object id
+      #
+      def recently_initialized_objects
+        @recently_initialized_objects ||= []
+      end
+
+      def recently_initialized_object!(proxy)
+        recently_initialized_objects << proxy.send(:proxied_object).object_id
+      end
+
+      def recently_initialized_object?(proxy)
+        recently_initialized_objects.include?(proxy.send(:proxied_object).object_id)
+      end
 
       #
       # @return [Array<Petra::Proxies::ObjectProxy>] Objects that were created during this section.

@@ -39,11 +39,10 @@ module Petra
         instance_method!
       end
 
-      # Creepy!
+      # Still Creepy!
       def new(attributes = {})
-        class_method!
-        proxied_object.new.petra(inherited: true, configuration_args: ['new']).tap do |o|
-          transaction.log_object_initialization(o)
+        super.tap do |o|
+          transaction.log_object_initialization(o, method: 'new')
 
           # TODO: nested parameters...
           attributes.each do |k, v|

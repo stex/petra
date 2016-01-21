@@ -80,15 +80,7 @@ module Petra
       #   meaning that it was initialized and optionally persisted during its execution
       #
       def new?(proxy)
-        # If there were no initialized or created objects yet, we may
-        # safely assume that the given object is indeed new.
-        # Checking for id inclusion would also lead us to an infinite loop here.
-        if initialized_or_created.empty?
-          # PROBLEM: hier und bei initialized findet eine endlosschleife statt.
-          # Hier muss nach einer anderen Möglichkeit gesucht werden
-        else
-          initialized_or_created.include?(proxy)
-        end
+        current_section.recently_initialized_object?(proxy) || initialized_or_created.include?(proxy)
       end
 
       #
@@ -105,7 +97,7 @@ module Petra
       #----------------------------------------------------------------
 
       def current_numerical_id
-        @current_numerical_id ||= (created.max_by(&:__object_id) || 'new_0').match(/new_(\d+)/)[1].to_i
+        @current_numerical_id ||= (created.max_by(&:__object_id)&.__object_id || 'new_0').match(/new_(\d+)/)[1].to_i
       end
 
       def inc_current_numerical_id

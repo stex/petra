@@ -95,8 +95,15 @@ module Petra
         self
       end
 
+      # Creepy!
+      def new(*)
+        class_method!
+        proxied_object.new.petra
+      end
+
       #
       # Access the proxied object publicly from each petra proxy
+      # TODO: This should not leave the proxy!
       #
       # @example
       #   user = User.petra.first
@@ -153,7 +160,9 @@ module Petra
       end
 
       #
-      # Generates an ID for the proxied object based on the class configuration
+      # Generates an ID for the proxied object based on the class configuration.
+      # New objects (= objects which were generated within this transaction) receive
+      # an artificial ID
       #
       def __object_id
         if __new?
