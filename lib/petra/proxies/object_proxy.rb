@@ -128,25 +128,27 @@ module Petra
       # Catch all methods which are not defined on this proxy object as they
       # are most likely meant to go to the proxied object
       #
+      # Also checks a few special cases like attribute reads/changes.
+      # Please note that a method may be e.g. a persistence method AND an attribute writer
+      # (for normal objects, every attribute write would be persisted to memory), so
+      # we have to execute all matching handlers in a queue.
+      #
       def method_missing(meth, *args, &block)
         # As calling a superclass method in ruby does not cause method calls within this method
         # to be called within the superclass context, the correct (= the child class') attribute
-        # detectors are ran.
-        if __attribute_writer?(meth)
-          result = handle_attribute_change(meth, *args)
-        elsif __attribute_reader?(meth)
-          result = handle_attribute_read(meth, *args)
-        elsif __dynamic_attribute_reader?(meth)
-          result = handle_dynamic_attribute_read(meth, *args)
-        else
-          result = handle_missing_method(meth, *args, &block)
+        # detectors are run.
+        result = execute_missing_queue(meth, *args) do |queue|
+          queue << :handle_attribute_change if __attribute_writer?(meth)
+          queue << :handle_attribute_read if __attribute_reader?(meth)
+          queue << :handle_dynamic_attribute_read if __dynamic_attribute_reader?(meth)
+          queue << :handle_object_persistence if __persistence_method?(meth)
         end
 
         Petra.logger.debug "#{object_class_or_self}##{meth}(#{args.map(&:inspect).join(', ')}) => #{result.inspect}"
 
         result
-      # rescue SystemStackError
-      #   raise ArgumentError, "Method '#{meth}' lead to a SystemStackError due to `method_missing`"
+      rescue SystemStackError
+        raise ArgumentError, "Method '#{meth}' lead to a SystemStackError due to `method_missing`"
       end
 
       #
@@ -223,6 +225,22 @@ module Petra
       end
 
       protected
+
+      #
+      # Yields an array and executes the given handlers afterwards.
+      #
+      # @return [Object] the first handler's execution result
+      #
+      def execute_missing_queue(method_name, *args)
+        yield queue = []
+        queue << handle_missing_method(method_name, *args, &block) if queue.empty?
+
+        send(:queue.first, method_name, *args).tap do
+          queue[1..-1].each do |handler|
+            send(handler, method_name, *args)
+          end
+        end
+      end
 
       #
       # Sets the given attribute to the given value using the default setter
@@ -314,6 +332,22 @@ module Petra
       end
 
       #
+      # Handles calls to a method which persists the proxied object.
+      # As we may not actually call the method on the proxied object, we may only
+      # log the persistence.
+      #
+      # This is a very simple behaviour, so it makes sense to handle persistence methods
+      # differently in specialized object proxies (see ActiveRecordProxy)
+      #
+      # TODO: Log parameters given to the persistence method so they can be used during the commit phase
+      #
+      def handle_object_persistence(method_name, *)
+        transaction.log_object_persistence(self, method: method_name)
+        # TODO: Find a better return value for pure persistence calls
+        true
+      end
+
+      #
       # As it might happen that a custom proxy has to be defined for behaviour
       # introduced to different classes as an included module (an example would be Enumerable),
       # it has to be possible to define an equivalent to object proxies for them.
@@ -372,6 +406,9 @@ module Petra
         class_proxy? ? proxied_object : proxied_object.class
       end
 
+      #
+      # @return [Boolean] +true+ if the proxied object is a +klass+
+      #
       def for_class?(klass)
         proxied_object.is_a?(klass)
       end
@@ -408,21 +445,31 @@ module Petra
       # methods within the currently proxied class
       #
       def __attribute_reader?(method_name)
-        object_config(:attribute_reader, method_name.to_s)
+        object_config(:attribute_reader?, method_name.to_s)
       end
 
       #
       # @see #__attribute_reader?
       #
       def __attribute_writer?(method_name)
-        object_config(:attribute_writer, method_name.to_s)
+        object_config(:attribute_writer?, method_name.to_s)
       end
 
       #
       # @see __#attribute_reader?
       #
+      # Currently, classes may not use dynamic attribute readers
+      #
       def __dynamic_attribute_reader?(method_name)
-        !class_proxy? && object_config(:dynamic_attribute_reader, method_name.to_s)
+        !class_proxy? && object_config(:dynamic_attribute_reader?, method_name.to_s)
+      end
+
+      #
+      # @return [Boolean] +true+ if the given method would persist the
+      #   proxied object
+      #
+      def __persistence_method?(method_name)
+        !class_proxy? && object_config(:persistence_method?, method_name.to_s)
       end
 
       #

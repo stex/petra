@@ -153,6 +153,7 @@ module Petra
       end
 
       #TODO: Was war hier geplant?!
+      #TODO: Hier soll ein existierendes Objekt geladen werden statt ein neues objekt zu initialisieren!
       def restore_proxy
         Petra.configuration[object_class]
       end

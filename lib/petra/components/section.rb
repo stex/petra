@@ -167,7 +167,7 @@ module Petra
         recently_initialized_object!(proxy)
 
         add_log_entry(proxy,
-                      kind: 'object_initialization',
+                      kind:   'object_initialization',
                       method: method)
       end
 
@@ -207,7 +207,9 @@ module Petra
       # be a way to handle GC with normal ruby objects (attach a handler to at least get notified).
       #
       def log_object_destruction(proxy, method: nil)
-
+        add_log_entry(proxy,
+                      kind:   'object_destruction',
+                      method: method)
       end
 
       #----------------------------------------------------------------
@@ -267,6 +269,14 @@ module Petra
         end
       end
 
+      #
+      # @return [Array<Petra::Proxies::ObjectProxies>] Objects which were destroyed
+      #   during the current section
+      def destroyed_objects
+        cache_if_persisted(:destroyed_objects) do
+          log_entries_of_kind(:object_destruction).map(&:load_proxy)
+        end
+      end
 
       #----------------------------------------------------------------
       #                         Persistence

@@ -3,16 +3,16 @@ module Petra
     class ClassConfigurator < Configurator
 
       DEFAULTS = {
-          :proxy_instances          => false,
-          :mixin_module_proxies     => true,
-          :use_specialized_proxy    => true,
-          :id_method                => :object_id,
-          :lookup_method            => ->(id) { ObjectSpace._id2ref(id) },
-          :init_method              => :new,
-          :attribute_reader         => false,
-          :attribute_writer         => ->(name) { name.last == '=' },
-          :dynamic_attribute_reader => false,
-          :persistence_method       => false
+          :proxy_instances           => false,
+          :mixin_module_proxies      => true,
+          :use_specialized_proxy     => true,
+          :id_method                 => :object_id,
+          :lookup_method             => ->(id) { ObjectSpace._id2ref(id) },
+          :init_method               => :new,
+          :attribute_reader?         => false,
+          :attribute_writer?         => ->(name) { name.last == '=' },
+          :dynamic_attribute_reader? => false,
+          :persistence_method?       => false
       }.freeze
 
       #
@@ -76,16 +76,22 @@ module Petra
       base_config :init_method
 
       #
-      # Expects the value (or return value of a block) to be a boolean value
-      # depending on whether a method name given as argument is an attribute reader
+      # Method to destroy an instance of the configured class.
+      # This method will be used
       #
-      base_config :attribute_reader
+      base_config :destroy_method
 
       #
       # Expects the value (or return value of a block) to be a boolean value
       # depending on whether a method name given as argument is an attribute reader
       #
-      base_config :attribute_writer
+      base_config :attribute_reader?
+
+      #
+      # Expects the value (or return value of a block) to be a boolean value
+      # depending on whether a method name given as argument is an attribute reader
+      #
+      base_config :attribute_writer?
 
       #
       # Sometimes it might be necessary to use helper methods to combine multiple attributes,
@@ -96,7 +102,7 @@ module Petra
       # the proxy's binding.
       # The function is expected to return a boolean value.
       #
-      base_config :dynamic_attribute_reader
+      base_config :dynamic_attribute_reader?
 
       #
       # Expects the value (or return value of a block) to be a boolean value
@@ -105,7 +111,7 @@ module Petra
       # For normal ruby objects this would be every attribute setter (as it would be persisted in
       # the process memory), for e.g. ActiveRecord::Base instances, this is only done by update/save/...
       #
-      base_config :persistence_method
+      base_config :persistence_method?
 
       #----------------------------------------------------------------
       #                        Helper Methods

@@ -54,7 +54,8 @@ module Petra
       def create(attributes = {})
         class_method!
         new(attributes).tap do |o|
-          transaction.log_object_persistence(o, method: 'create')
+          # Set the called method to #save as we will use #new -> #save in the commit phase
+          transaction.log_object_persistence(o, method: 'save')
         end
       end
 
