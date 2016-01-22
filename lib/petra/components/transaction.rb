@@ -9,12 +9,13 @@ module Petra
 
       alias_method :persisted?, :persisted
       alias_method :committed?, :committed
-      alias_method :reset?,     :reset
+      alias_method :reset?, :reset
 
       delegate :log_attribute_change,
                :log_object_persistence,
                :log_attribute_read,
-               :log_object_initialization, :to => :current_section
+               :log_object_initialization,
+               :log_object_destruction, :to => :current_section
 
       def initialize(identifier:)
         @identifier = identifier
@@ -78,6 +79,10 @@ module Petra
         # If we didn't read the attribute before, we can't search for changes
         return unless read_attribute_value?(proxy, attribute: attribute)
 
+        # New objects won't be changed externally...
+        return if proxy.__new?
+
+        # Check whether the actual attribute value still equals the one we last read
         if proxy.unproxied.send(attribute) != read_attribute_value(proxy, attribute: attribute)
           fail Petra::ReadIntegrityError, "The attribute `#{attribute}` has been changed externally."
         end
@@ -104,7 +109,7 @@ module Petra
       def sections
         @sections ||= persistence_adapter.savepoints(self).map do |savepoint|
           Petra::Components::Section.new(self, savepoint: savepoint)
-        end
+        end.sort_by(&:savepoint_version)
       end
 
       #----------------------------------------------------------------

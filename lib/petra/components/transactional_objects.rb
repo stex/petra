@@ -54,7 +54,18 @@ module Petra
       end
 
       #
-      # @param [Petra::Proxies::ObjectProxy]
+      # @see #filtered_objects
+      #
+      # @param [Class] klass
+      #
+      # @return [Array<Petra::Proxies::ObjectProxy>] objects which were destroyed within the transaction
+      #
+      def destroyed(klass = nil)
+        filtered_objects(:destroyed_objects, klass)
+      end
+
+      #
+      # @param [Petra::Proxies::ObjectProxy] proxy
       #
       # @return [Boolean] +true+ if the given object (proxy) was initialized AND persisted during the transaction.
       #
@@ -63,7 +74,7 @@ module Petra
       end
 
       #
-      # @param [Petra::Proxies::ObjectProxy]
+      # @param [Petra::Proxies::ObjectProxy] proxy
       #
       # @return [Boolean] +true+ if the given object (proxy) was initialized, but not yet persisted
       #   during this transaction. This means in particular that the object did not exist before
@@ -84,12 +95,21 @@ module Petra
       end
 
       #
-      # @param [Petra::Proxies::ObjectProxy]
+      # @param [Petra::Proxies::ObjectProxy] proxy
       #
       # @return [Boolean] +true+ if the given object existed before the transaction started
       #
       def existing?(proxy)
         !new?(proxy)
+      end
+
+      #
+      # @param [Petra::Proxies::ObjectProxy] proxy
+      #
+      # @return [Boolean] +true+ if the given object was destroyed during this transaction
+      #
+      def destroyed?(proxy)
+        destroyed.include?(proxy)
       end
 
       #----------------------------------------------------------------

@@ -10,9 +10,10 @@ module Petra
           :lookup_method             => ->(id) { ObjectSpace._id2ref(id) },
           :init_method               => :new,
           :attribute_reader?         => false,
-          :attribute_writer?         => ->(name) { name.last == '=' },
+          :attribute_writer?         => ->(name) { /=$/ === name },
           :dynamic_attribute_reader? => false,
-          :persistence_method?       => false
+          :persistence_method?       => false,
+          :destruction_method?       => false
       }.freeze
 
       #

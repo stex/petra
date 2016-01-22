@@ -137,6 +137,10 @@ module Petra
         end
       end
 
+      def to_s
+        "#{section.savepoint}/#{object_id} => #{kind}"
+      end
+
       private
 
       #

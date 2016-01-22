@@ -122,7 +122,7 @@ module Petra
         # as attribute changes and persistence (e.g. #edit and #update in Rails)
         # This has to be done even if the attribute wasn't really changed as the user most likely
         # saw the current value and therefore decided not to change it.
-        unless value_for?(proxy, attribute: attribute)
+        unless transaction.attribute_value?(proxy, attribute: attribute)
           log_attribute_read(proxy, attribute: attribute, new_value: old_value, method: method)
         end
 
@@ -157,6 +157,7 @@ module Petra
                       new_value: new_value)
 
         Petra.logger.info "Logged attribute read (#{attribute} => #{new_value})", :yellow
+        true
       end
 
       #
@@ -169,6 +170,7 @@ module Petra
         add_log_entry(proxy,
                       kind:   'object_initialization',
                       method: method)
+        true
       end
 
       #
@@ -199,6 +201,8 @@ module Petra
                       method:           method,
                       kind:             'object_persistence',
                       object_persisted: true)
+
+        true
       end
 
       #
@@ -210,6 +214,7 @@ module Petra
         add_log_entry(proxy,
                       kind:   'object_destruction',
                       method: method)
+        true
       end
 
       #----------------------------------------------------------------
@@ -272,6 +277,7 @@ module Petra
       #
       # @return [Array<Petra::Proxies::ObjectProxies>] Objects which were destroyed
       #   during the current section
+      #
       def destroyed_objects
         cache_if_persisted(:destroyed_objects) do
           log_entries_of_kind(:object_destruction).map(&:load_proxy)
@@ -328,18 +334,17 @@ module Petra
         attribute     = options.delete(:attribute)
         attribute_key = attribute && proxy.__attribute_key(attribute)
 
-        entry = Petra::Components::LogEntry.new(self,
-                                                transaction_identifier: transaction.identifier,
-                                                savepoint:              savepoint,
-                                                attribute_key:          attribute_key,
-                                                object_key:             proxy.__object_key,
-                                                object_persisted:       object_persisted,
-                                                transaction_persisted:  persisted?,
-                                                **options)
-
-        Petra.logger.debug "Added log entry: #{transaction.identifier}/#{savepoint}/#{attribute_key}", :yellow
-
-        log_entries << entry
+        Petra::Components::LogEntry.new(self,
+                                        transaction_identifier: transaction.identifier,
+                                        savepoint:              savepoint,
+                                        attribute_key:          attribute_key,
+                                        object_key:             proxy.__object_key,
+                                        object_persisted:       object_persisted,
+                                        transaction_persisted:  persisted?,
+                                        **options).tap do |entry|
+          log_entries << entry
+          Petra.logger.debug "Added Log Entry: #{entry}", :yellow
+        end
       end
 
       #

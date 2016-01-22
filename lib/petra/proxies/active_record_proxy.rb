@@ -33,10 +33,14 @@ module Petra
         end
 
         transaction.log_object_persistence(self, method: 'update_attributes')
+
+        # TODO: Validations?
+        true
       end
 
       def save(*)
         instance_method!
+        transaction.log_object_persistence(self, method: 'save')
       end
 
       # Still Creepy!
@@ -61,6 +65,7 @@ module Petra
 
       def destroy
         instance_method!
+        transaction.log_object_destruction(self, method: 'destroy')
       end
 
       #----------------------------------------------------------------
@@ -86,7 +91,7 @@ module Petra
 
         # Fetch the records which already existed outside the transaction and
         # add the temporary objects to the result
-        result = handle_missing_method('find', ids - new_ids) + new_records
+        result = __handlers.handle_missing_method('find', ids - new_ids) + new_records
 
         # To emulate AR's behaviour, return the first result if we only got one.
         result.size == 1 ? result.first : result
@@ -105,6 +110,10 @@ module Petra
         !__existing? && !__created?
       end
 
+      #
+      # @return [Boolean] +true+ if the proxied object either already existed (persisted) when the
+      #   transaction started or was object persisted during its execution.
+      #
       def persisted?
         instance_method!
         __existing? || __created?
