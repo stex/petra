@@ -13,6 +13,11 @@ module Petra
       attr_accessor :savepoint
       attr_accessor :transaction_identifier
 
+      # An object is a 'new object' if it was created during this transaction and does
+      # not exist outside of it yet. This information is necessary when restoring
+      # proxies from previous sections
+      attr_reader :new_object
+
       # The method which was used to perform the changes, e.g. "save"
       # This is mainly used for debugging purposes and does not have to be set
       attr_accessor :method
@@ -43,6 +48,7 @@ module Petra
 
       alias_method :object_persisted?, :object_persisted
       alias_method :transaction_persisted?, :transaction_persisted
+      alias_method :new_object?, :new_object
 
       def initialize(section, **options)
         @section                    = section
@@ -54,6 +60,7 @@ module Petra
         self.object_key             = options[:object_key,]
         self.old_value              = options[:old_value]
         self.new_value              = options[:new_value]
+        @new_object                 = options[:new_object]
         @object_persisted           = options[:object_persisted]
         @transaction_persisted      = options[:transaction_persisted]
       end
@@ -86,11 +93,17 @@ module Petra
       # will only be used during persistence or on already persisted entries
       #
       def to_h
-        [:method, :kind, :attribute_key, :object_key, :old_value, :new_value].each_with_object({}) do |k, h|
+        [:new_object, :method, :kind, :attribute_key,
+         :object_key, :old_value, :new_value].each_with_object({}) do |k, h|
           h[k] = send(k)
         end
       end
 
+      #
+      # Builds a log entry from the given section and hash, but automatically sets the persistence flags
+      #
+      # @return [Petra::Components::LogEntry]
+      #
       def self.from_hash(section, hash)
         self.new(section, hash.merge(object_persisted: true, transaction_persisted: true))
       end
@@ -110,7 +123,7 @@ module Petra
       end
 
       #
-      # Adds the log entry to the persistence queue if the two following conditions are met:
+      # Adds the log entry to the persistence queue if the following conditions are met:
       #
       # 1. The log entry has to be marked as 'object_persisted', meaning that the object was saved
       #    during/after the action which created the the entry
@@ -129,12 +142,14 @@ module Petra
       #                        Object Helpers
       #----------------------------------------------------------------
 
+      #
+      # @return [Petra::Proxies::ObjectProxy] the proxy this log entry was made for
+      #
+      # TODO: This currently initializes a new proxy instance every time. We should
+      #   cache currently existing proxies somewhere.
+      #
       def load_proxy
-        if kind?(:object_initialization)
-          initialize_proxy
-        else
-          restore_proxy
-        end
+        new_object? ? initialize_proxy : restore_proxy
       end
 
       def to_s
@@ -152,14 +167,22 @@ module Petra
       #
       def initialize_proxy
         klass    = object_class.constantize
-        instance = Petra.configuration[klass].__value(:init_method, proc_expected: true, base: klass)
+        instance = configurator.__inherited_value(:init_method, proc_expected: true, base: klass)
         Petra::Proxies::ObjectProxy.for(instance, object_id: object_id)
       end
 
-      #TODO: Was war hier geplant?!
-      #TODO: Hier soll ein existierendes Objekt geladen werden statt ein neues objekt zu initialisieren!
+      #
+      # Loads an object which most likely existed outside of the transaction
+      # and wraps it in a proxy.
+      #
+      # @return [Petra::Proxies::ObjectProxy] a proxy for the object this log entry is about.
+      #
+      # Please note that no custom attributes are set, they will be served from the write set.
+      #
       def restore_proxy
-        Petra.configuration[object_class]
+        klass    = object_class.constantize
+        instance = configurator.__inherited_value(:lookup_method, object_id, proc_expected: true, base: klass)
+        Petra::Proxies::ObjectProxy.for(instance)
       end
 
       def object_key=(key)
@@ -170,6 +193,10 @@ module Petra
       def attribute_key=(key)
         @attribute_key                        = key
         @object_class, @object_id, @attribute = @attribute_key.split('/') if @attribute_key
+      end
+
+      def configurator
+        @configurator ||= Petra.configuration[object_class]
       end
     end
   end

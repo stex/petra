@@ -117,12 +117,12 @@ module Petra
       #   The method which was used to change the attribute
       #
       def log_attribute_change(proxy, attribute:, old_value:, new_value:, method: nil)
-        # Generate a read set entry when we attempt to change an attribute value for the first time.
+        # Generate a read set entry if we didn't read this attribute before.
         # This is necessary as real attribute reads are not necessarily performed in the same section
         # as attribute changes and persistence (e.g. #edit and #update in Rails)
         # This has to be done even if the attribute wasn't really changed as the user most likely
         # saw the current value and therefore decided not to change it.
-        unless transaction.attribute_value?(proxy, attribute: attribute)
+        unless transaction.read_attribute_value?(proxy, attribute:attribute)
           log_attribute_read(proxy, attribute: attribute, new_value: old_value, method: method)
         end
 
@@ -211,9 +211,24 @@ module Petra
       # be a way to handle GC with normal ruby objects (attach a handler to at least get notified).
       #
       def log_object_destruction(proxy, method: nil)
+        # Destruction is a form of persistence, resp. its opposite.
+        # Therefore, we have to make sure that any other log entries for this
+        # object will be transaction persisted as the may have lead to the object's destruction.
+        #
+        # Currently, this happens even if the object hasn't been persisted prior to
+        # its destruction which is accepted behaviour e.g. by ActiveRecord instances.
+        # We'll have to see if this should stay the common behaviour.
+        log_entries_for(proxy).each(&:mark_as_object_persisted!)
+
+        # As for attribute persistence, every attribute which was read in the current section
+        # might have had impact on the destruction of this object. Therefore, we have
+        # to make sure that all these log entries will be persisted.
+        log_entries_of_kind(:attribute_read).each(&:mark_as_object_persisted!)
+
         add_log_entry(proxy,
-                      kind:   'object_destruction',
-                      method: method)
+                      kind:             'object_destruction',
+                      method:           method,
+                      object_persisted: true)
         true
       end
 
@@ -341,6 +356,7 @@ module Petra
                                         object_key:             proxy.__object_key,
                                         object_persisted:       object_persisted,
                                         transaction_persisted:  persisted?,
+                                        new_object:             proxy.__new?,
                                         **options).tap do |entry|
           log_entries << entry
           Petra.logger.debug "Added Log Entry: #{entry}", :yellow

@@ -77,12 +77,6 @@ module Petra
       base_config :init_method
 
       #
-      # Method to destroy an instance of the configured class.
-      # This method will be used
-      #
-      base_config :destroy_method
-
-      #
       # Expects the value (or return value of a block) to be a boolean value
       # depending on whether a method name given as argument is an attribute reader
       #
@@ -113,6 +107,14 @@ module Petra
       # the process memory), for e.g. ActiveRecord::Base instances, this is only done by update/save/...
       #
       base_config :persistence_method?
+
+      #
+      # Expects the value (or return value of a block) to be a boolean value and
+      # be +true+ if the given method is a "destructor" of the configured class.
+      # This can't be easily said for plain ruby objects, but some classes
+      # may implement an own destruction behaviour (e.g. ActiveRecord)
+      #
+      base_config :destruction_method?
 
       #----------------------------------------------------------------
       #                        Helper Methods

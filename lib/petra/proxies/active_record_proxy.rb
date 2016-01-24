@@ -41,6 +41,9 @@ module Petra
       def save(*)
         instance_method!
         transaction.log_object_persistence(self, method: 'save')
+
+        # TODO: Validations?
+        true
       end
 
       # Still Creepy!
@@ -66,6 +69,7 @@ module Petra
       def destroy
         instance_method!
         transaction.log_object_destruction(self, method: 'destroy')
+        self
       end
 
       #----------------------------------------------------------------
@@ -92,6 +96,11 @@ module Petra
         # Fetch the records which already existed outside the transaction and
         # add the temporary objects to the result
         result = __handlers.handle_missing_method('find', ids - new_ids) + new_records
+
+        # Fail if there are any destroyed objects in the returned collection
+        if (destroyed_record = result.find(&:destroyed?))
+          fail ::ActiveRecord::RecordNotFound, "Couldn't find #{name} with '#{primary_key}'=#{destroyed_record.__object_id}"
+        end
 
         # To emulate AR's behaviour, return the first result if we only got one.
         result.size == 1 ? result.first : result
@@ -121,6 +130,7 @@ module Petra
 
       def destroyed?
         instance_method!
+        __destroyed?
       end
 
       #----------------------------------------------------------------
@@ -191,10 +201,9 @@ module Petra
       #
       def new_records_from_ids(ids)
         ids.map do |new_id|
-          unless (object = transaction.objects.created(proxied_object).find { |o| o.__object_id == new_id })
-            fail ::ActiveRecord::RecordNotFound, "Couldn't find #{name} with '#{primary_key}'=#{new_id}"
+          transaction.objects.created(proxied_object).find { |o| o.__object_id == new_id }.tap do |object|
+            fail ::ActiveRecord::RecordNotFound, "Couldn't find #{name} with '#{primary_key}'=#{new_id}" unless object
           end
-          object
         end
       end
     end

@@ -116,8 +116,7 @@ module Petra
       #
       # Handles a getter method for the proxied object.
       # As attribute changes are not actually forwarded to the actual object,
-      # we have to retrieve them from the current (or a past *shiver*) transaction section's
-      # write set.
+      # we have to retrieve them from the transaction's write set.
       #
       def handle_attribute_read(method_name, *args)
         if transaction.attribute_value?(@proxy, attribute: method_name)
@@ -128,6 +127,11 @@ module Petra
           transaction.attribute_value(@proxy, attribute: method_name).tap do |result|
             Petra.logger.debug "Served value from write set: #{method_name}  => #{result}", :yellow
           end
+        elsif transaction.read_attribute_value?(@proxy, attribute: method_name)
+          # If we didn't write the attribute before, we may at least have already read it.
+          # In this case, we don't have to generate a new read log entry
+          transaction.verify_attribute_integrity!(@proxy, attribute: method_name)
+          proxied_object.send(method_name, *args).tap
         else
           proxied_object.send(method_name, *args).tap do |val|
             transaction.log_attribute_read(@proxy, attribute: method_name, new_value: val, method: method_name)

@@ -14,7 +14,8 @@ module Petra
       #   of the proxied class which would have to appear in the result set as well.
       #
       def to_a
-        __handlers.handle_missing_method(:to_a) + transaction.objects.created(proxied_object.klass)
+        collection = __handlers.handle_missing_method(:to_a) + transaction.objects.created(proxied_object.klass)
+        collection.reject(&:__destroyed?)
       end
 
       # Same behaviour as in the original ActiveRecord::Relation to ensure
