@@ -131,7 +131,9 @@ module Petra
           # If we didn't write the attribute before, we may at least have already read it.
           # In this case, we don't have to generate a new read log entry
           transaction.verify_attribute_integrity!(@proxy, attribute: method_name)
-          proxied_object.send(method_name, *args).tap
+          proxied_object.send(method_name, *args).tap do |result|
+            Petra.logger.debug "Re-read attribute: #{method_name}  => #{result}", :yellow
+          end
         else
           proxied_object.send(method_name, *args).tap do |val|
             transaction.log_attribute_read(@proxy, attribute: method_name, new_value: val, method: method_name)

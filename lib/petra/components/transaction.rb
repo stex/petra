@@ -60,7 +60,7 @@ module Petra
       # @return [Object] the last read value for the given attribute
       #
       def read_attribute_value(proxy, attribute:)
-        sections.reverse.find { |s| s.value_for?(proxy, attribute: attribute) }
+        sections.reverse.find { |s| s.read_value_for?(proxy, attribute: attribute) }
             .read_value_for(proxy, attribute: attribute)
       end
 
@@ -130,7 +130,8 @@ module Petra
 
       #
       # Performs a rollback on this transaction, meaning that it will be set
-      # to the state of the latest savepoint
+      # to the state of the latest savepoint.
+      # The current section will be reset, but keep the same savepoint name.
       #
       def rollback!
         current_section.reset!
