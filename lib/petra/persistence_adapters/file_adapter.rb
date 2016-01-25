@@ -54,6 +54,29 @@ module Petra
         end
       end
 
+      def with_global_lock(**options, &block)
+        with_file_lock('global.persistence', **options, &block)
+      rescue Petra::LockError
+        exception = Petra::LockError.new(lock_type: 'global', lock_name: 'global')
+        raise exception, 'The global lock could not be acquired.'
+      end
+
+      def with_transaction_lock(transaction, **options, &block)
+        identifier = transaction.is_a?(Petra::Components::Transaction) ? transaction.identifier : transaction
+        with_file_lock("transaction.#{identifier}", **options, &block)
+      rescue Petra::LockError
+        exception = Petra::LockError.new(lock_type: 'transaction', lock_name: identifier)
+        raise exception, "The transaction lock '#{identifier}' could not be acquired."
+      end
+
+      def with_object_lock(proxy, **options, &block)
+        key = proxy.__object_key.gsub('/', '-')
+        with_file_lock("proxy.#{key}", **options, &block)
+      rescue Petra::LockError
+        exception = Petra::LockError.new(lock_type: 'object', lock_name: proxy.__object_key)
+        raise exception, "The object lock '#{proxy.__object_id}' could not be acquired."
+      end
+
       private
 
       #
@@ -66,14 +89,6 @@ module Petra
         FileUtils.mkdir_p(storage_file_name(*path))
       end
 
-      def with_global_lock(&block)
-        with_file_lock('global.persistence', &block)
-      end
-
-      def with_transaction_lock(transaction_identifier, &block)
-        with_file_lock(transaction_identifier, &block)
-      end
-
       #
       # Executes the given block after acquiring a lock on the given filename
       # If the lock is already held by this process, but not with the same file handle,
@@ -81,18 +96,34 @@ module Petra
       #
       # @param [String] filename
       #
-      def with_file_lock(filename, &block)
+      # @param [Boolean] suspend
+      #   If set to +false+, a LockError is thrown if the lock could not be acquired.
+      #
+      # @raise [Petra::LockError] If +suspend+ is set to +false+ and the lock could not be acquired
+      #
+      # TODO: Ensure that the file handle is closed when an exception is thrown.
+      #
+      def with_file_lock(filename, suspend: true, &block)
         @held_file_locks ||= []
         if @held_file_locks.include?(lock_file_name(filename))
           block.call
         else
           begin
             File.open(lock_file_name(filename), File::RDWR|File::CREAT, 0644) do |f|
-              f.flock(File::LOCK_EX)
+
+              if suspend
+                f.flock(File::LOCK_EX)
+              else
+                fail Petra::LockError unless f.flock(File::LOCK_NB|File::LOCK_EX)
+              end
+
+              Petra.logger.debug "Acquired Lock: #{filename}", :purple
+
               @held_file_locks << lock_file_name(filename)
               block.call
             end
           ensure
+            Petra.logger.debug "Released Lock: #{filename}", :cyan
             @held_file_locks.delete(lock_file_name(filename))
           end
         end

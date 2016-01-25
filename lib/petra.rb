@@ -42,7 +42,7 @@ module Petra
   # Attempts to commit the currently active transaction
   #
   def self.commit!
-    fail Petra::Commit
+    transaction_manager.commit_transaction
   end
 
   #

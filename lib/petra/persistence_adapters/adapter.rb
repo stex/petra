@@ -89,14 +89,21 @@ module Petra
         not_implemented
       end
 
-      protected
-
       #
       # @abstract
       #
       # Executes the given block after acquiring a global lock
       #
-      def with_global_lock(&block)
+      # The actual implementation must ensure that an acquired lock is released in case of
+      # an exception!
+      #
+      # @param [Boolean] suspend
+      #   If set to +false+, the method will not suspend if the global lock could not be
+      #   acquired. Instead, a Petra::LockError is thrown
+      #
+      # @raise [Petra::LockError] see +suspend+
+      #
+      def with_global_lock(suspend: true, &block)
         not_implemented
       end
 
@@ -107,9 +114,39 @@ module Petra
       # meaning that other processes which execute something in the same transaction's context
       # have to wait / abort
       #
-      def with_transaction_lock(_identifier, &block)
+      # The actual implementation must ensure that an acquired lock is released in case of
+      # an exception!
+      #
+      # @param [Boolean] suspend
+      #   If set to +false+, the method will not suspend if the transaction lock could not be
+      #   acquired. Instead, a Petra::LockError is thrown
+      #
+      # @raise [Petra::LockError] see +suspend+
+      #
+      def with_transaction_lock(_identifier, suspend: true, &block)
         not_implemented
       end
+
+      #
+      # @abstract
+      #
+      # Executes the given block after acquiring the lock for the given proxy (object)
+      #
+      # The actual implementation must ensure that an acquired lock is released in case of
+      # an exception!
+      #
+      # @param [Petra::Proxies::ObjectProxy] _proxy
+      #
+      # @param [Boolean] suspend
+      #   See #with_global_lock
+      #
+      # @raise [Petra::LockError]
+      #
+      def with_object_lock(_proxy, suspend: true, &block)
+        not_implemented
+      end
+
+      protected
 
       def queue
         @queue ||= []

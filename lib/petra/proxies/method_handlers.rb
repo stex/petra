@@ -122,8 +122,11 @@ module Petra
         if transaction.attribute_value?(@proxy, attribute: method_name)
           # As we read this attribute before, we have the value we read back then on record.
           # Therefore, we may check if the value changed in the mean time which would invalidate
-          # the transaction (most likely)
-          transaction.verify_attribute_integrity!(@proxy, attribute: method_name)
+          # the transaction (most likely).
+          if Petra.configuration.instant_read_integrity_fail
+            transaction.verify_attribute_integrity!(@proxy, attribute: method_name)
+          end
+
           transaction.attribute_value(@proxy, attribute: method_name).tap do |result|
             Petra.logger.debug "Served value from write set: #{method_name}  => #{result}", :yellow
           end
@@ -165,11 +168,13 @@ module Petra
       # Generates a new Proc object from the source code of a given instance method
       # of the proxied object.
       #
+      # TODO: This does not work well with #unloadable, e.g. in Rails development environment
+      # TODO: method.parameters returns the required and optional parameters, these could be handed to the proc
+      # TODO: what happens with dynamically generated methods? is there a practical way to achieve this?
+      #
       def method_source_proc(method_name)
         method        = proxied_object.method(method_name.to_sym)
         method_source = method.source.lines[1..-2].join
-        # TODO: method.parameters returns the required and optional parameters, these could be handed to the proc
-        # TODO: what happens with dynamically generated methods? is there a practical way to achieve this?
         Proc.new do
           @proxy_binding.eval method_source
         end

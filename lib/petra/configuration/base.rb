@@ -3,14 +3,29 @@ module Petra
     class Base
 
       DEFAULTS = {
-          :persistence_adapter_name => 'file',
-          :log_level                => 'debug',
-          :storage_directory        => '/tmp'
+          :persistence_adapter_name    => 'file',
+          :log_level                   => 'debug',
+          :storage_directory           => '/tmp',
+          :instant_read_integrity_fail => true
       }.freeze
 
       #----------------------------------------------------------------
       #                       Configuration Keys
       #----------------------------------------------------------------
+
+      #
+      # Configures whether a read integrity error will be automatically
+      # detected whenever an attribute is read.
+      # If this is set to +false+, the read values will only be checked during
+      # the commit phase.
+      #
+      def instant_read_integrity_fail(new_value = nil)
+        if !new_value.nil?
+          __configuration_hash[:instant_read_integrity_fail] = new_value
+        else
+          __config_or_default(:instant_read_integrity_fail)
+        end
+      end
 
       #
       # Sets the adapter to be used as transaction persistence adapter.

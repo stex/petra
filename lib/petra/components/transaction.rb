@@ -75,16 +75,28 @@ module Petra
       # We cannot check here whether the attribute had several different values before
       # going back to the original one, so we only compare the current and the last read value.
       #
-      def verify_attribute_integrity!(proxy, attribute:)
+      # @param [Boolean] force
+      #   If set to +true+, the check is performed even if it was disabled in the
+      #   base configuration.
+      #
+      # @raise [Petra::ReadIntegrityError] Raised if the attribute value changed since
+      #   we last read it.
+      #
+      def verify_attribute_integrity!(proxy, attribute:, force: false)
         # If we didn't read the attribute before, we can't search for changes
         return unless read_attribute_value?(proxy, attribute: attribute)
+
+        # Don't perform the check if the force flag is not set and
+        # petra is configured to not fail on read integrity errors at all.
+        return if !force && !Petra.configuration.instant_read_integrity_fail
 
         # New objects won't be changed externally...
         return if proxy.__new?
 
         # Check whether the actual attribute value still equals the one we last read
         if proxy.unproxied.send(attribute) != read_attribute_value(proxy, attribute: attribute)
-          fail Petra::ReadIntegrityError, "The attribute `#{attribute}` has been changed externally."
+          exception = Petra::ReadIntegrityError.new(attribute: attribute, object: proxy)
+          fail exception, "The attribute `#{attribute}` has been changed externally."
         end
       end
 
@@ -93,7 +105,17 @@ module Petra
       #----------------------------------------------------------------
 
       def objects
-        @objects ||= TransactionalObjects.new(self)
+        @objects ||= ProxyCache.new(self)
+      end
+
+      #
+      # Undo all the changes made to this proxy within the current section
+      # TODO: Think about if that's something you'd really want to do... other changes might
+      #   rely on this object...
+      # TODO: Reset the object in the whole transaction?
+      #
+      def reset_object!(proxy)
+        current_section.reset_object!(proxy)
       end
 
       #----------------------------------------------------------------
@@ -107,6 +129,7 @@ module Petra
       end
 
       def sections
+        # TODO: Acquire the transaction lock once here, otherwise, every section will do it.
         @sections ||= persistence_adapter.savepoints(self).map do |savepoint|
           Petra::Components::Section.new(self, savepoint: savepoint)
         end.sort_by(&:savepoint_version)
@@ -120,12 +143,44 @@ module Petra
       # Tries to commit the current transaction
       #
       def commit!
-        sections.each do |section|
+        # Step 1: Lock this transaction so no other thread may alter it any more
+        persistence_adapter.with_transaction_lock(identifier) do
+          begin
+            # Step 2: Try to get the locks for all objects which took part in this transaction
+            #   Acquire the locks on a sorted collection to avoid Deadlocks with other transactions
+            # We do not have to lock objects which were created within the transaction
+            #   as the cannot be altered outside of it and the transaction itself is locked.
+            with_locked_objects(objects.fateful.sort.reject(&:__new?), suspend: false) do
+              # Step 3: Now that we got locks on all objects used during this transaction,
+              #   we can check whether all read attributes still have the same value.
+              #   If that's not the case, we may not proceed.
+              objects.verify_read_attributes!(force: true)
 
+              # Step 4: Now that we know that all read values are still valid,
+              #   we may actually apply all the changes we previously logged.
+              sections.each(&:apply_log_entries!)
+
+              @committed = true
+              Petra.logger.info "Committed transaction #{@identifier}", :blue, :underline
+
+              # Step 5: Wow, me made it this far!
+              #   Now it's time to clean up and remove the data we previously persisted for this
+              #   transaction before releasing the lock on all of the objects and the transaction itself.
+              # TODO: See if this causes problems with other threads working on this transactions. Probably keep
+              #   the entries around and just mark the transaction as committed?
+              #   Idea: keep it and add a last log entry like `transaction_commit` and persist it.
+              persistence_adapter.reset_transaction(self)
+            end
+          rescue Petra::ReadIntegrityError => e
+            raise
+            # One (or more) of the attributes from our read set changed externally
+          rescue Petra::LockError => e
+            raise
+            # One (or more) of the objects could not be locked.
+            #   The object locks are freed by itself, but we have to notify
+            #   the outer application about this commit error
+          end
         end
-
-        @committed = true
-        Petra.logger.info "Committed transaction #{@identifier}", :green
       end
 
       #
@@ -158,6 +213,31 @@ module Petra
       end
 
       private
+
+      #
+      # Tries to acquire locks on all of the given proxies and executes
+      # the given block afterwards.
+      #
+      # Please note that the objects may still be altered outside of transactions.
+      #
+      # This ensures that all object locks are released if an exception occurs
+      #
+      # @param [Array<Petra::Proxies::ObjectProxy>] proxies
+      #
+      # @raise [Petra::LockError] If +suspend+ is set to +false+, a LockError is raised
+      #   if one of the object locks could not be acquired
+      #
+      # TODO: Many objects, many SystemStackErrors?
+      #
+      def with_locked_objects(proxies, suspend: true, &block)
+        if proxies.empty?
+          block.call
+        else
+          persistence_adapter.with_object_lock(proxies.first, suspend: suspend) do
+            with_locked_objects(proxies[1..-1], suspend: suspend, &block)
+          end
+        end
+      end
 
       #
       # @return [Petra::PersistenceAdapters::Adapter] the current persistence adapter

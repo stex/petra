@@ -51,7 +51,8 @@ module Petra
       # TODO: Nested transactions again, what would happen?
       #
       def reset_transaction
-        @stack.pop.reset!
+        @stack.last.reset!
+        @stack.pop
       end
 
       #
@@ -61,14 +62,16 @@ module Petra
       # TODO: Can we jump to a custom savepoint? What would happen if we were using the outer transaction's data?
       #
       def rollback_transaction
-        @stack.pop.rollback!
+        @stack.last.rollback!
+        @stack.pop
       end
 
       #
       # Commits the currently innermost transaction
       #
       def commit_transaction
-        @stack.pop.commit!
+        @stack.last.commit!
+        @stack.pop
       end
 
       #
@@ -78,7 +81,12 @@ module Petra
       # was set using the corresponding exception class
       #
       def persist_transaction
-        @stack.pop.persist!
+        @stack.last.persist!
+        @stack.pop
+      end
+
+      def reset_object(proxy)
+        current_transaction.reset_object!(proxy)
       end
 
       #
@@ -108,7 +116,7 @@ module Petra
               begin
                 persist_transaction unless transaction.committed?
               rescue Exception
-                transaction.rollback unless transaction.persisted?
+                transaction.rollback! unless transaction.persisted?
                 raise
               end
             end
@@ -142,19 +150,19 @@ module Petra
         case e
           when Petra::Rollback
             rollback_transaction
-          when Petra::Commit
-            commit_transaction
           when Petra::Reset
             reset_transaction
           when Petra::ReadIntegrityError
             reset_transaction
             raise
+          when Petra::ObjectReset
+            reset_object(e.object)
           # ActionView wraps errors inside an own error class. Therefore,
           # we have to extract the actual exception first.
           when -> (_) { Petra.rails? && e.is_a?(ActionView::Template::Error) }
             handle_exception(e.original_exception, transaction: transaction)
           else
-            # If another exception happened, we perform a transaction rollback (for now)
+            # If another exception happened, we forward it to the actual application
             # rollback_transaction
             raise
         end

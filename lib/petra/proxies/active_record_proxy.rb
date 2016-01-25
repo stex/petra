@@ -32,7 +32,9 @@ module Petra
           __set_attribute(k, v)
         end
 
-        transaction.log_object_persistence(self, method: 'update_attributes')
+        # As attribute changes are done separately, we can safely give `save` as
+        # method to apply to the generated log entry instead of the actual method (update_attributes)
+        transaction.log_object_persistence(self, method: 'save')
 
         # TODO: Validations?
         true

@@ -74,7 +74,11 @@ module Petra
       end
 
       def object_persistence?
-        kind?(:object_persistence?)
+        kind?(:object_persistence)
+      end
+
+      def object_initialization?
+        kind?(:object_initialization)
       end
 
       def mark_as_object_persisted!
@@ -122,6 +126,10 @@ module Petra
         self.kind.to_s == kind.to_s
       end
 
+      #----------------------------------------------------------------
+      #                        Persistence
+      #----------------------------------------------------------------
+
       #
       # Adds the log entry to the persistence queue if the following conditions are met:
       #
@@ -139,17 +147,37 @@ module Petra
       end
 
       #----------------------------------------------------------------
+      #                           Commit
+      #----------------------------------------------------------------
+
+      #
+      # Applies the action performed in the current log entry
+      # to the corresponding object
+      #
+      def apply!
+        load_proxy.send(:__apply__, self)
+      end
+
+      #
+      # Tries to undo a previously done #apply!
+      # This is currently only possible for attribute changes as we do not know
+      # how to undo destruction / persistence for general objects
+      #
+      def undo!
+        load_proxy.send(:__undo_application__, self)
+      end
+
+      #----------------------------------------------------------------
       #                        Object Helpers
       #----------------------------------------------------------------
 
       #
       # @return [Petra::Proxies::ObjectProxy] the proxy this log entry was made for
       #
-      # TODO: This currently initializes a new proxy instance every time. We should
-      #   cache currently existing proxies somewhere.
-      #
       def load_proxy
-        new_object? ? initialize_proxy : restore_proxy
+        @proxy ||= transaction.objects.fetch(object_key) do
+          new_object? ? initialize_proxy : restore_proxy
+        end
       end
 
       def to_s
@@ -179,6 +207,9 @@ module Petra
       #
       # Please note that no custom attributes are set, they will be served from the write set.
       #
+      # TODO: Raise an exception here if a proxy could not be restored.
+      #   This most likely means that the object was destroyed outside of the transaction!
+      #
       def restore_proxy
         klass    = object_class.constantize
         instance = configurator.__inherited_value(:lookup_method, object_id, proc_expected: true, base: klass)
@@ -197,6 +228,10 @@ module Petra
 
       def configurator
         @configurator ||= Petra.configuration[object_class]
+      end
+
+      def transaction
+        Petra.current_transaction
       end
     end
   end

@@ -98,6 +98,14 @@ module Petra
       end
 
       #
+      # Applies all log entries which were marked as object persisted
+      # The log entry itself decides whether it is actually executed or not.
+      #
+      def apply_log_entries!
+        log_entries.select(&:object_persisted?).each(&:apply!)
+      end
+
+      #
       # Generates a log entry for an attribute change in a certain object.
       # If old and new value are the same, no log entry is created.
       #
@@ -122,7 +130,7 @@ module Petra
         # as attribute changes and persistence (e.g. #edit and #update in Rails)
         # This has to be done even if the attribute wasn't really changed as the user most likely
         # saw the current value and therefore decided not to change it.
-        unless transaction.read_attribute_value?(proxy, attribute:attribute)
+        unless transaction.read_attribute_value?(proxy, attribute: attribute)
           log_attribute_read(proxy, attribute: attribute, new_value: old_value, method: method)
         end
 
@@ -256,6 +264,42 @@ module Petra
       end
 
       #
+      # @return [Hash<Petra::Proxies::ObjectProxy, Array<String,Symbol>>]
+      #   All attributes which were read during this section grouped by the objects (proxies)
+      #   they belong to.
+      #
+      # Only entries which were previously marked as object persisted are taken into account.
+      #
+      def read_attributes
+        cache_if_persisted(:read_attributes) do
+          log_entries_of_kind(:attribute_read).select(&:object_persisted?).each_with_object({}) do |entry, h|
+            h[entry.load_proxy] ||= []
+            h[entry.load_proxy] << entry.attribute unless h[entry.load_proxy].include?(entry.attribute)
+          end
+        end
+      end
+
+      #
+      # @return [Array<Petra::Proxies::ObjectProxy>] All Objects that were part of this section.
+      #   Only log entries marked as object persisted are taken into account
+      #
+      def objects
+        cache_if_persisted(:all_objects) do
+          log_entries.select(&:object_persisted).map(&:load_proxy).uniq
+        end
+      end
+
+      #
+      # @return [Array<Petra::Proxies::ObjectProxy>] Objects that were read during this section
+      #   Only read log entries which were marked as object persisted are taken into account
+      #
+      def read_objects
+        cache_if_persisted(:read_objects) do
+          read_attributes.keys
+        end
+      end
+
+      #
       # @return [Array<Petra::Proxies::ObjectProxy>] Objects that were created during this section.
       #
       # It does not matter whether the section was persisted or not in this case,
@@ -263,7 +307,7 @@ module Petra
       #
       def created_objects
         cache_if_persisted(:created_objects) do
-          log_entries_of_kind(:object_initialization).select(&:object_persisted?).map(&:load_proxy)
+          log_entries_of_kind(:object_initialization).select(&:object_persisted?).map(&:load_proxy).uniq
         end
       end
 
@@ -273,7 +317,7 @@ module Petra
       #
       def initialized_objects
         cache_if_persisted(:initialized_objects) do
-          log_entries_of_kind(:object_initialization).reject(&:object_persisted?).map(&:load_proxy)
+          log_entries_of_kind(:object_initialization).reject(&:object_persisted?).map(&:load_proxy).uniq
         end
       end
 
@@ -285,7 +329,7 @@ module Petra
       #
       def initialized_or_created_objects
         cache_if_persisted(:initialized_or_created_objects) do
-          initialized_objects + created_objects
+          (initialized_objects + created_objects).uniq
         end
       end
 
@@ -295,7 +339,7 @@ module Petra
       #
       def destroyed_objects
         cache_if_persisted(:destroyed_objects) do
-          log_entries_of_kind(:object_destruction).map(&:load_proxy)
+          log_entries_of_kind(:object_destruction).map(&:load_proxy).uniq
         end
       end
 
@@ -313,6 +357,15 @@ module Petra
         @log_entries = []
         @read_set    = []
         @write_set   = []
+      end
+
+      #
+      # Removes all log entries for the given proxy from this section - as long
+      # as the section hasn't been persisted yet.
+      #
+      def reset_object!(proxy)
+        fail Petra::PetraError, 'An already persisted section may not be reset' if persisted?
+        @log_entries = log_entries - log_entries_for(proxy)
       end
 
       #

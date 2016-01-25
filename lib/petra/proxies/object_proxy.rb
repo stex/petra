@@ -155,13 +155,57 @@ module Petra
 
       #
       # Very simple spaceship operator based on the object key
-      # TODO: See if this causes problems when ID-ordering is expected
+      # TODO: See if this causes problems when ID-ordering is expected.
+      #   For existing objects that shouldn't be the case in most situations as
+      #   a collection mostly contains only objects of one kind
       #
       def <=>(other_proxy)
         __object_key <=> other_proxy.__object_key
       end
 
       protected
+
+      #----------------------------------------------------------------
+      #                        Commit Phase
+      #----------------------------------------------------------------
+
+      #
+      # Applies the action performed in the given log entry to the proxied object (if applicable)
+      #
+      # @param [Petra::Components::LogEntry] log_entry
+      #
+      def __apply__(log_entry)
+        # We do not have to apply attribute reads at all as they do not (should not!)
+        # change the object
+        return true if log_entry.attribute_read?
+        # If we already have this proxy, the object has been initialized by the log entry
+        return true if log_entry.object_initialization?
+
+        case log_entry.kind.to_s
+          when 'attribute_change'
+            proxied_object.send(log_entry.method, log_entry.new_value)
+          when 'object_persistence'
+            # TODO: React to `false` responses from persistence methods?
+            # This would however cause problems with normal objects (setter <=> persistence method) and boolean values
+            proxied_object.send(log_entry.method)
+          when 'object_destruction'
+            # TODO: React to `false` responses from destruction methods?
+            proxied_object.send(log_entry.method)
+          else
+            Petra.logger.warn "Unexpected log entry type `#{log_entry.kind}`", :red
+        end
+      end
+
+      #
+      # Tries to `unapply` the given log entry.
+      # Currently, the only log entries which can be processed here are attribute changes
+      # as we don't know how to undo persistence or destruction actions
+      #
+      # @param [Petra::Components::LogEntry] log_entry
+      #
+      def __undo_application__(log_entry)
+
+      end
 
       #----------------------------------------------------------------
       #                    Method Group Detectors
@@ -197,6 +241,14 @@ module Petra
       #
       def __persistence_method?(method_name)
         !class_proxy? && object_config(:persistence_method?, method_name.to_s)
+      end
+
+      #
+      # @return [Boolean] +true+ if the given method name is a "destructor" of the
+      #   proxied object
+      #
+      def __destruction_method?(method_name)
+        !class_proxy? && object_config(:destruction_method?, method_name.to_s)
       end
 
       #

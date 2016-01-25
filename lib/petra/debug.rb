@@ -3,18 +3,25 @@ module Petra
     STRING_COLORS = {:light_gray => 90,
                      :yellow     => 33,
                      :green      => 32,
-                     :red        => 31}
+                     :red        => 31,
+                     :purple     => 35,
+                     :cyan       => 36,
+                     :blue       => 34}
+
+    FORMATS = {:default   => 0,
+               :bold      => 1,
+               :underline => 4}
 
     [:debug, :info, :warn, :error].each do |level|
-      define_method level do |message, color = :light_gray|
-        log(message, level: level, color: color)
+      define_method level do |message, color = :light_gray, format = :default|
+        log(message, level: level, color: color, format: format)
       end
 
       module_function level
     end
 
-    def log(message, level: :debug, color: :light_gray)
-      logger.send(level, 'Petra :: ' << colored_string(message, color))
+    def log(message, level: :debug, color: :light_gray, format: :default)
+      logger.send(level, 'Petra :: ' << colored_string(message, color, format))
     end
 
     private
@@ -25,8 +32,8 @@ module Petra
       end
     end
 
-    def colored_string(string, color)
-      "\e[#{STRING_COLORS[color.to_sym]}m#{string}\e[0m"
+    def colored_string(string, color, format)
+      "\e[#{FORMATS[format]};#{STRING_COLORS[color.to_sym]}m#{string}\e[0m"
     end
 
     module_function :log, :logger, :colored_string
