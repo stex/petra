@@ -6,24 +6,10 @@ module Petra
     # a transaction adapter has to implement.
     #
     class Adapter
+      include Petra::Util::Registrable
+      acts_as_register :adapter
 
       class << self
-        def registered_adapters
-          @adapters ||= {}
-        end
-
-        def registered_adapter(name)
-          registered_adapters[name.to_s]
-        end
-
-        def register_adapter(name, klass)
-          registered_adapters[name.to_s] = klass.to_s
-        end
-
-        def registered_adapter?(name)
-          registered_adapters.has_key?(name.to_s)
-        end
-
         alias_method :[], :registered_adapter
       end
 

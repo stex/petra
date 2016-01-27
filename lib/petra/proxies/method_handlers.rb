@@ -139,7 +139,7 @@ module Petra
           end
         else
           proxied_object.send(method_name, *args).tap do |val|
-            transaction.log_attribute_read(@proxy, attribute: method_name, new_value: val, method: method_name)
+            transaction.log_attribute_read(@proxy, attribute: method_name, value: val, method: method_name)
           end
         end
       end

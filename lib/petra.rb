@@ -54,7 +54,7 @@ module Petra
   # Logs the given +message+
   #
   def self.logger
-    Petra::Debug
+    Petra::Util::Debug
   end
 
   def self.rails?

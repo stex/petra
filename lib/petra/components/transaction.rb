@@ -93,9 +93,15 @@ module Petra
         # New objects won't be changed externally...
         return if proxy.__new?
 
+        external_value  = proxy.unproxied.send(attribute)
+        last_read_value = read_attribute_value(proxy, attribute: attribute)
+
         # Check whether the actual attribute value still equals the one we last read
-        if proxy.unproxied.send(attribute) != read_attribute_value(proxy, attribute: attribute)
-          exception = Petra::ReadIntegrityError.new(attribute: attribute, object: proxy)
+        if external_value != last_read_value
+          exception = Petra::ReadIntegrityError.new(attribute:       attribute,
+                                                    object:          proxy,
+                                                    last_read_value: last_read_value,
+                                                    external_value:  external_value)
           fail exception, "The attribute `#{attribute}` has been changed externally."
         end
       end
@@ -173,7 +179,7 @@ module Petra
             end
           rescue Petra::ReadIntegrityError => e
             raise
-            # One (or more) of the attributes from our read set changed externally
+              # One (or more) of the attributes from our read set changed externally
           rescue Petra::LockError => e
             raise
             # One (or more) of the objects could not be locked.
@@ -189,7 +195,7 @@ module Petra
       # The current section will be reset, but keep the same savepoint name.
       #
       def rollback!
-        current_section.reset!
+        current_section.reset! unless current_section.persisted?
         Petra.logger.warn "Rolled back transaction #{@identifier}", :green
       end
 

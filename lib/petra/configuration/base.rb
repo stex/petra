@@ -43,7 +43,7 @@ module Petra
           end
           __configuration_hash[:persistence_adapter_name] = name
         else
-          Petra::PersistenceAdapters::Adapter[__config_or_default(:persistence_adapter_name)].constantize
+          Petra::PersistenceAdapters::Adapter[__config_or_default(:persistence_adapter_name)]
         end
       end
 
