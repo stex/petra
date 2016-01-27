@@ -41,6 +41,8 @@ module Petra
       # Adds the given log entry to the queue to be persisted next.
       # Fails if the queue already contains the log entry.
       #
+      # @param [Petra::Components::LogEntry] log_entry
+      #
       def enqueue(log_entry)
         if queue.include?(log_entry)
           fail Petra::PersistenceError, 'A log entry can only be added to a persistence queue once'
@@ -155,7 +157,6 @@ module Petra
       def clear_queue!
         @queue = []
       end
-
     end
   end
 end

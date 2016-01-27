@@ -7,8 +7,8 @@ module Petra
         # We currently only allow entries for one transaction in the queue
         with_transaction_lock(queue.first.transaction_identifier) do
           while (entry = queue.shift) do
-            create_entry_file(entry)
-            entry.mark_as_persisted!
+            identifier = create_entry_file(entry)
+            entry.mark_as_persisted!(identifier)
           end
         end
       end
@@ -192,8 +192,9 @@ module Petra
         t = Time.now
         filename = "#{t.to_i}.#{t.nsec}.entry"
         with_storage_file(*section_dirname(entry.section), filename, mode: 'w') do |f|
-          YAML.dump(entry.to_h, f)
+          YAML.dump(entry.to_h(entry_identifier: filename), f)
         end
+        filename
       end
 
       #

@@ -7,12 +7,8 @@ require_all File.join(File.dirname(__FILE__), 'petra')
 module Petra
   extend SingleForwardable
 
-  def self.active_record?
-    defined?(ActiveRecord::Base)
-  end
-
-  def self.rails?
-    defined?(Rails)
+  def self.root
+    Pathname.new(File.dirname(__FILE__))
   end
 
   #
@@ -60,11 +56,11 @@ module Petra
   def self.logger
     Petra::Debug
   end
-end
 
-# Load the ActiveRecord models only if ActiveRecord itself is defined.
-# TODO: Do not rely on Rails::Engine...
-require_all Petra::Engine.root.join('app', 'models') if Petra.active_record?
+  def self.rails?
+    defined?(Rails)
+  end
+end
 
 # Extend the Object class to add the `petra` proxy generator
 Object.class_eval do

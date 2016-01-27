@@ -159,6 +159,8 @@ module Petra
             reset_object(e.object)
           # ActionView wraps errors inside an own error class. Therefore,
           # we have to extract the actual exception first.
+          # TODO: Allow the registration of error handlers for certain exceptions to get rid of
+          #   this very specific behaviour in petra core
           when -> (_) { Petra.rails? && e.is_a?(ActionView::Template::Error) }
             handle_exception(e.original_exception, transaction: transaction)
           else

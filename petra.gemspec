@@ -19,14 +19,11 @@ Gem::Specification.new do |s|
 
   s.required_ruby_version = '>= 2.3'
 
-  # TODO: Replace rails with active_support which we need e.g. for constantize
-  s.add_dependency 'rails', '~> 4.2'
+  s.add_dependency 'activesupport', '~> 4.2'
   s.add_dependency 'require_all', '~> 1.3'
 
   s.add_development_dependency 'sqlite3'
   s.add_development_dependency 'temping'
-  s.add_development_dependency 'rspec-rails'
-  s.add_development_dependency 'pry-rails'
   s.add_development_dependency 'guard-rspec'
   s.add_development_dependency 'guard-rubocop'
 end
