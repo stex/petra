@@ -1,3 +1,5 @@
+require 'petra/util/registrable'
+
 module Petra
   module PersistenceAdapters
 

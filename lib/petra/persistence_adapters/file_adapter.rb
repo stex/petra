@@ -1,3 +1,5 @@
+require 'petra/persistence_adapters/adapter'
+
 module Petra
   module PersistenceAdapters
     class FileAdapter < Adapter

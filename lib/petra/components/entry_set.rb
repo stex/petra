@@ -1,3 +1,5 @@
+require 'petra/components/log_entry'
+
 module Petra
   module Components
     #

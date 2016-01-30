@@ -1,3 +1,6 @@
+require 'petra/util/field_accessors'
+require 'petra/util/registrable'
+
 module Petra
   module Components
     #

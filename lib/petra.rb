@@ -1,10 +1,26 @@
-require 'require_all'
-require 'forwardable'
+require 'active_support/all'
 
-# Load all of petra's core files
-# TODO: There still seem to be some Rails-dependent methods in the code, remove them!
-# TODO: Load order seems to matter when not using Rails auto-loading...
-require_all File.join(File.dirname(__FILE__), 'petra')
+require 'petra/core_ext'
+require 'petra/exceptions'
+require 'petra/configuration/base'
+require 'petra/configuration/class_configurator'
+require 'petra/util/debug'
+require 'petra/persistence_adapters/file_adapter'
+
+require 'petra/proxies/enumerable_proxy'
+require 'petra/proxies/object_proxy'
+
+require 'petra/components/transaction_manager'
+
+require 'petra/components/entries/attribute_change'
+require 'petra/components/entries/attribute_change_veto'
+require 'petra/components/entries/attribute_read'
+require 'petra/components/entries/object_destruction'
+require 'petra/components/entries/object_initialization'
+require 'petra/components/entries/object_persistence'
+require 'petra/components/entries/read_integrity_override'
+
+require 'forwardable'
 
 module Petra
   extend SingleForwardable

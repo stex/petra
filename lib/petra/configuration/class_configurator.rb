@@ -1,3 +1,5 @@
+require 'petra/configuration/configurator'
+
 module Petra
   module Configuration
     class ClassConfigurator < Configurator

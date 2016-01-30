@@ -1,3 +1,6 @@
+require 'petra/proxies/abstract_proxy'
+require 'petra/proxies/method_handlers'
+
 module Petra
   module Proxies
     #

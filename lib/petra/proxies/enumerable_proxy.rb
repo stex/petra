@@ -1,3 +1,5 @@
+require 'petra/proxies/module_proxy'
+
 module Petra
   module Proxies
     #

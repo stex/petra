@@ -20,7 +20,7 @@ module Petra
           proxied_object.send(method, new_value)
         end
 
-        Petra::Components::LogEntry.register_entry_type(:attribute_change, self)
+        Petra::Components::LogEntry.register_entry_type(kind, self)
       end
     end
   end

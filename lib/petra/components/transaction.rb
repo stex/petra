@@ -1,3 +1,7 @@
+require 'petra/components/entry_set'
+require 'petra/components/section'
+require 'petra/components/proxy_cache'
+
 module Petra
   module Components
     class Transaction

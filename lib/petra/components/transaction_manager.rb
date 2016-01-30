@@ -1,3 +1,5 @@
+require 'petra/components/transaction'
+
 module Petra
   module Components
     #
