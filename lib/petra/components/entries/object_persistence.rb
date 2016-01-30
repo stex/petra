@@ -12,7 +12,7 @@ module Petra
           proxied_object.send(method)
         end
 
-        Petra::Components::LogEntry.register_entry_type(:object_persistence, self)
+        Petra::Components::LogEntry.register_entry_type(kind, self)
       end
     end
   end

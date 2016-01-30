@@ -1,44 +1,111 @@
 module Petra
 
+  #----------------------------------------------------------------
+  #                     Exception Base classes
+  #----------------------------------------------------------------
+
   # Generic error class wrapping all custom petra exceptions
-  class PetraError < StandardError; end
+  class PetraError < StandardError;
+  end
+
+  #
+  # Error class which accepts an options hash and sets its key/value pairs
+  # as instance variables. Inherited classes therefore only have to specify the
+  # corresponding attribute readers
+  #
+  class ExtendedError < PetraError
+    def initialize(**options)
+      options.each do |k, v|
+        instance_variable_set("@#{k}", v)
+      end
+    end
+  end
 
   # Used whenever a configuration value differs from what petra expects it to be
-  class ConfigurationError < PetraError; end
+  class ConfigurationError < PetraError;
+  end
 
   # Used for generic errors during transaction persistence
-  class PersistenceError < PetraError; end
+  class PersistenceError < PetraError;
+  end
 
   # Thrown when a transaction should be persisted, but is locked by another instance
-  class TransactionLocked < PetraError; end
+  class TransactionLocked < PetraError;
+  end
 
-  class HandlerException < PetraError
+  class HandlerException < ExtendedError
+    #
+    # Resets the currently active transaction
+    # This will stop the transaction execution, so make sure that you wrap
+    # important code which has to be executed afterwards in an `ensure`
+    #
     def reset_transaction!
       raise Petra::Reset
     end
 
+    #
+    # Requests a section rollback on the currently active transaction
+    # This will stop the transaction execution, so make sure that you wrap
+    # important code which has to be executed afterwards in an `ensure`
+    #
     def rollback_transaction!
       raise Petra::Rollback
     end
   end
 
-  # Thrown when a read (and used) attribute changed its value externally
-  class ReadIntegrityError < HandlerException
-    attr_reader :object
-    attr_reader :attribute
+  class ValueComparisonError < HandlerException
+    attr_reader :object # The affected proxy
+    attr_reader :attribute # The affected attribute
+    attr_reader :external_value # The new external attribute value
 
-    def initialize(attribute: nil, object: nil)
-      @attribute = attribute
-      @object    = object
-    end
-
-    def reset_object!
-      raise Petra::ObjectReset.new(object)
+    #
+    # Tells the current transaction to ignore further errors of this kind
+    # until the attribute value is changed again externally.
+    #
+    # @param [Boolean] update_value
+    #   If set to +true+, the read set entry for this attribute is updated with the
+    #   new external value. This means that the new value will be visible inside of
+    #   the transaction until it changes again.
+    #
+    #   Otherwise, the exception is completely ignored and will have no impact
+    #   on the values displayed inside the transaction.
+    #
+    def ignore!(update_value: false)
+      Petra.current_transaction.current_section.log_read_integrity_override(object,
+                                                                            attribute:      attribute,
+                                                                            external_value: external_value,
+                                                                            update_value:   update_value)
     end
   end
 
+  # Thrown when a read attribute changed its value externally
+  # If we read AND changed the attribute, a ReadWriteIntegrityError is raised instead
+  class ReadIntegrityError < ValueComparisonError
+    attr_reader :last_read_value # The value we last read for this attribute (before it was changed)
+  end
+
+  # Thrown when an attribute that we previously read AND changed
+  # was also changed externally.
+  class WriteClashError < ValueComparisonError
+    attr_reader :our_value
+
+    #
+    # Tells the transaction to ignore all changes previously done to the current
+    # attribute in the transaction.
+    #
+    def undo_changes!
+      Petra.current_transaction.current_section.log_attribute_change_veto(object,
+                                                                          attribute:      attribute,
+                                                                          external_value: external_value)
+    end
+
+    alias_method :their_value, :external_value
+    alias_method :use_ours!, :ignore!
+    alias_method :use_theirs!, :undo_changes!
+  end
+
   #----------------------------------------------------------------
-  #                     Pseudo error classes
+  #                  Transaction Flow Error Classes
   #----------------------------------------------------------------
 
   # Used internally when a lock could not be acquired (non-suspending locking)
@@ -55,23 +122,27 @@ module Petra
   # This error is thrown only to tell the transaction manager to
   # abort the current transaction's execution.
   # This is necessary e.g. after successfully committing a transaction
-  class AbortTransaction < PetraError; end
+  class AbortTransaction < PetraError;
+  end
 
   # An error class which is never passed on out of petra.
   # It is used to cause a rollback for the currently active petra transaction
-  class Rollback < PetraError; end
+  class Rollback < PetraError;
+  end
+
+  class ObjectException < PetraError
+
+
+  end
 
   class ObjectReset < PetraError
-    attr_reader :object
 
-    def initialize(proxy)
-      @object = proxy
-    end
   end
 
   # See +Rollback+, this error class is used to trigger a complete
   # reset on the currently active petra transaction
   # TODO: Nested transactions anyone?
-  class Reset < PetraError; end
+  class Reset < PetraError;
+  end
 
 end

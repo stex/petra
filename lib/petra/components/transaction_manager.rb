@@ -155,8 +155,6 @@ module Petra
           when Petra::ReadIntegrityError
             reset_transaction
             raise
-          when Petra::ObjectReset
-            reset_object(e.object)
           # ActionView wraps errors inside an own error class. Therefore,
           # we have to extract the actual exception first.
           # TODO: Allow the registration of error handlers for certain exceptions to get rid of

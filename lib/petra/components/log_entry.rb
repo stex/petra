@@ -1,14 +1,14 @@
 module Petra
   module Components
     #
-    # Necessary Components:
+    # A log entry is basically a struct with certain helper functions.
+    # This class contains some base functionality and a map of more specific log entry types.
     #
-    #   - A transaction identifier (to find out which transaction a log entry belongs to)
-    #   - A section identifier / savepoint name so we are able to undo log entries for a certain section
-    #   - Type of the performed action (?)
-    #   - Changeset (serialized?)
+    # Registered entry types may define own +field_accessors+ which will be
+    # serialized when persisting the log entries.
     #
     class LogEntry
+      include Comparable
       include Petra::Util::Registrable
       include Petra::Util::FieldAccessors
       acts_as_register :entry_type
@@ -55,7 +55,7 @@ module Petra
       #
       # Initializes a new log entry based on the given section and options
       #
-      # @param [Hash] options
+      # @param [Hash] fields
       # @option options [String] :savepoint (section.savepoint)
       #   The savepoint name this log entry is part of.
       #
@@ -94,9 +94,20 @@ module Petra
 
         self.savepoint              ||= section.savepoint
         self.transaction_identifier ||= section.transaction.identifier
+      end
 
-        # @new_object            = options[:new_object]
-
+      #
+      # If both entries were made in the same section, the smaller entry was
+      # generated earlier than the other.
+      # If both entries are in different sections, the one with a smaller
+      # savepoint version is considered smaller.
+      #
+      def <=>(other_entry)
+        if section == other_entry.section
+          section.log_entries.index(self) <=> section.log_entries.index(other_entry)
+        else
+          section.savepoint_version <=> other_entry.section.savepoint_version
+        end
       end
 
       #----------------------------------------------------------------
@@ -198,8 +209,17 @@ module Petra
       #
       def enqueue_for_persisting!
         return if transaction_persisted?
-        return unless object_persisted?
+        return unless persist?
         Petra.transaction_manager.persistence_adapter.enqueue(self)
+      end
+
+      #
+      # May be overridden by more specialized log entries,
+      # the basic version will persist an entry as long as it is marked
+      # as object persisted
+      #
+      def persist?
+        object_persisted?
       end
 
       #----------------------------------------------------------------

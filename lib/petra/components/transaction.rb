@@ -42,11 +42,16 @@ module Petra
       end
 
       #
-      # @return [Boolean] +true+ if one of the previous write sets contains a value for
-      #   the given attribute
+      # Checks whether the given attribute has been changed during the transaction.
+      # It basically searches for a matching write set entry in all previous (and current) sections.
+      # If such an entry exists AND there hasn't been an attribute change veto which is newer than it,
+      # the attribute counts as "changed within the transaction".
+      #
+      # @return [Boolean] +true+ if there there was a valid attribute change
       #
       def attribute_value?(proxy, attribute:)
-        sections.reverse.any? { |s| s.value_for?(proxy, attribute: attribute) }
+        sections.reverse.any? { |s| s.value_for?(proxy, attribute: attribute) } &&
+            !attribute_change_veto?(proxy, attribute: attribute)
       end
 
       #
@@ -64,6 +69,85 @@ module Petra
             .read_value_for(proxy, attribute: attribute)
       end
 
+      alias_method :attribute_changed?, :attribute_value?
+      alias_method :attribute_read?, :read_attribute_value?
+
+      #
+      # @return [Petra::Components::EntrySet] the combined log entries of all sections from old to new
+      #
+      # TODO: Cache entries from already persisted sections.
+      #
+      def log_entries
+        sections.each_with_object(EntrySet.new) { |s, es| es.concat(s.log_entries) }
+      end
+
+      #
+      # @param [Petra::Proxies::ObjectProxy] proxy
+      #
+      # @param [String, Symbol] attribute
+      #
+      # @param [Object] external_value
+      #   The current external value. It is needed as read integrity overrides
+      #   only stay active as long as the external value stays the same.
+      #
+      # @return [Boolean] +true+ if ReadIntegrityErrors should still be suppressed for
+      #   the given attribute. This is the case if a ReadIntegrityOverride log entry is still
+      #   active
+      #
+      def read_integrity_override?(proxy, attribute:, external_value:)
+        # Step 1: Search for the latest read integrity override entry we have for the given attribute
+        attribute_entries = log_entries.for_attribute_key(proxy.__attribute_key(attribute))
+        rio_entry         = attribute_entries.of_kind(:read_integrity_override).latest
+
+        # If there was no override in the past sections, there can't be an active one
+        return false unless rio_entry
+
+        # Step 2: Find the read log entry we previously created for this attribute.
+        #   There has to be one as otherwise no read integrity error could have happened.
+        read_entry = attribute_entries.of_kind(:attribute_read).latest
+
+        # Step 3: Test if the read entry is newer than the RIO entry.
+        #   If that's the case, the user most likely decided that the new external
+        #   value should be displayed inside the transaction.
+        #   As we could have only landed here if the external value changed again,
+        #   we probably have to re-raise an exception about that.
+        return false if read_entry > rio_entry
+
+        # Step 4: We found ourselves a RIO entry that has not yet been invalidated
+        #   by another attribute read, good.
+        #   Now we have to check whether the current external value is still
+        #   the same as at the time we generated the RIO entry.
+        #   If that's the case, we still have an active read integrity override.
+        rio_entry.external_value == external_value
+      end
+
+      #
+      # @param [Petra::Proxies::ObjectProxy] proxy
+      #
+      # @param [String, Symbol] attribute
+      #
+      # @return [Boolean] +true+ if there is an active AttributeChangeVeto
+      #   for the given attribute, meaning that all attribute changes
+      #   should be discarded.
+      #
+      # TODO: Combine with #read_integrity_override, because DRY
+      #
+      def attribute_change_veto?(proxy, attribute:)
+        # Step 1: Search for the latest attribute change veto entry we have for the given attribute
+        attribute_entries = log_entries.for_attribute_key(proxy.__attribute_key(attribute))
+        acv_entry         = attribute_entries.of_kind(:attribute_change_veto).latest
+
+        # If there hasn't been an attribute change veto in the past, there can't be an active one
+        return false unless acv_entry
+
+        # Step 2: Find the latest attribute change entry we have for the given attribute
+        change_entry = attribute_entries.of_kind(:attribute_change).latest
+
+        # Step 3: Check if the change entry is newer than the ACV entry
+        #   If so, the ACV entry is no longer valid
+        change_entry < acv_entry
+      end
+
       #----------------------------------------------------------------
       #                        Attribute Helpers
       #----------------------------------------------------------------
@@ -79,12 +163,15 @@ module Petra
       #   If set to +true+, the check is performed even if it was disabled in the
       #   base configuration.
       #
-      # @raise [Petra::ReadIntegrityError] Raised if the attribute value changed since
-      #   we last read it.
+      # @raise [Petra::ReadIntegrityError] Raised if an attribute that we previously read,
+      #   but NOT changed was changed externally
+      #
+      # @raise [Petra::ReadWriteIntegrityError] Raised if an attribute that we previously read AND
+      #   changed was changed externally
       #
       def verify_attribute_integrity!(proxy, attribute:, force: false)
         # If we didn't read the attribute before, we can't search for changes
-        return unless read_attribute_value?(proxy, attribute: attribute)
+        return unless attribute_read?(proxy, attribute: attribute)
 
         # Don't perform the check if the force flag is not set and
         # petra is configured to not fail on read integrity errors at all.
@@ -96,8 +183,32 @@ module Petra
         external_value  = proxy.unproxied.send(attribute)
         last_read_value = read_attribute_value(proxy, attribute: attribute)
 
-        # Check whether the actual attribute value still equals the one we last read
-        if external_value != last_read_value
+        # If nothing changed, we're done
+        return if external_value == last_read_value
+
+        if attribute_changed?(proxy, attribute: attribute)
+          # We read AND changed this attribute before
+
+          # The user has previously chosen to ignore the external changes to this attribute (using ignore!).
+          # Therefore, we do not have to raise another exception
+          return if read_integrity_override?(proxy, attribute: attribute, external_value: external_value)
+
+          # If there is already an active attribute change veto (meaning that we didn't change
+          # the attribute again after the last one), we don't have to raise another exception about it.
+          # TODO: This should have already been filtered out by #attribute_changed?
+          # return if attribute_change_veto?(proxy, attribute: attribute)
+
+          exception = Petra::WriteClashError.new(attribute:      attribute,
+                                                 object:         proxy,
+                                                 our_value:      attribute_value(proxy, attribute: attribute),
+                                                 external_value: external_value)
+          fail exception, "The attribute `#{attribute}` has been changed externally and in the transaction."
+        else
+          # We only read this attribute before.
+          # If the user (/developer) previously placed a read integrity override
+          # for the current external value, we don't have to re-raise an exception about the change
+          return if read_integrity_override?(proxy, attribute: attribute, external_value: external_value)
+
           exception = Petra::ReadIntegrityError.new(attribute:       attribute,
                                                     object:          proxy,
                                                     last_read_value: last_read_value,
@@ -112,16 +223,6 @@ module Petra
 
       def objects
         @objects ||= ProxyCache.new(self)
-      end
-
-      #
-      # Undo all the changes made to this proxy within the current section
-      # TODO: Think about if that's something you'd really want to do... other changes might
-      #   rely on this object...
-      # TODO: Reset the object in the whole transaction?
-      #
-      def reset_object!(proxy)
-        current_section.reset_object!(proxy)
       end
 
       #----------------------------------------------------------------
@@ -196,7 +297,7 @@ module Petra
       #
       def rollback!
         current_section.reset! unless current_section.persisted?
-        Petra.logger.warn "Rolled back transaction #{@identifier}", :green
+        Petra.logger.warn "Rolled back section #{current_section.savepoint}", :green
       end
 
       #

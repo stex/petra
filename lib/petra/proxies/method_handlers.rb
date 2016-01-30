@@ -123,9 +123,7 @@ module Petra
           # As we read this attribute before, we have the value we read back then on record.
           # Therefore, we may check if the value changed in the mean time which would invalidate
           # the transaction (most likely).
-          if Petra.configuration.instant_read_integrity_fail
-            transaction.verify_attribute_integrity!(@proxy, attribute: method_name)
-          end
+          transaction.verify_attribute_integrity!(@proxy, attribute: method_name)
 
           transaction.attribute_value(@proxy, attribute: method_name).tap do |result|
             Petra.logger.debug "Served value from write set: #{method_name}  => #{result}", :yellow
@@ -134,8 +132,10 @@ module Petra
           # If we didn't write the attribute before, we may at least have already read it.
           # In this case, we don't have to generate a new read log entry
           transaction.verify_attribute_integrity!(@proxy, attribute: method_name)
-          proxied_object.send(method_name, *args).tap do |result|
-            Petra.logger.debug "Re-read attribute: #{method_name}  => #{result}", :yellow
+
+          # We also may simply return the last accepted read set value
+          transaction.read_attribute_value(@proxy, attribute: method_name).tap do |result|
+            Petra.logger.debug "Re-read attribute: #{method_name}  => #{result}", :yellow, :bold
           end
         else
           proxied_object.send(method_name, *args).tap do |val|

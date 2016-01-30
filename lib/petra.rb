@@ -2,6 +2,8 @@ require 'require_all'
 require 'forwardable'
 
 # Load all of petra's core files
+# TODO: There still seem to be some Rails-dependent methods in the code, remove them!
+# TODO: Load order seems to matter when not using Rails auto-loading...
 require_all File.join(File.dirname(__FILE__), 'petra')
 
 module Petra
@@ -30,8 +32,8 @@ module Petra
   #
   # @see Petra::Components::TransactionManager#with_transaction
   #
-  def self.transaction(identifier: SecureRandom.uuid, &block)
-    Petra::Components::TransactionManager.with_transaction(identifier: identifier, &block)
+  def self.transaction(identifier: nil, &block)
+    Petra::Components::TransactionManager.with_transaction(identifier: identifier || SecureRandom.uuid, &block)
   end
 
   #

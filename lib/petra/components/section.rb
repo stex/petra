@@ -43,6 +43,30 @@ module Petra
       end
 
       #
+      # Holds all read integrity overrides which were generated during this section.
+      # There should normally only be one per section.
+      #
+      # The hash maps attribute keys to the external value at the time the corresponding
+      # log entry was generated. Please take a look at Petra::Components::Entries::ReadIntegrityOverride
+      # for more information about this kind of log entry.
+      #
+      def read_integrity_overrides
+        @read_integrity_overrides ||= {}
+      end
+
+      #
+      # Holds all attribute change vetoes for the current section.
+      # If an attribute key is in this hash, it means that all previous changes
+      # made to it should be voided.
+      #
+      # If an attribute is changed again after a veto was added, it is removed from
+      # this hash.
+      #
+      def attribute_change_vetoes
+        @attribute_change_vetoes ||= {}
+      end
+
+      #
       # @return [Object, NilClass] the value which was set for the given attribute
       #   during this session. Please note that setting attributes to +nil+ is normal behaviour,
       #   so please make sure you always check whether there actually is value in the write set
@@ -78,31 +102,31 @@ module Petra
         read_set[proxy.__attribute_key(attribute)]
       end
 
+      #
+      # @return [Boolean] +true+ if there is a read integrity override for
+      #   the given attribute name
+      #
+      def read_integrity_override?(proxy, attribute:)
+        read_integrity_overrides.has_key?(proxy.__attribute_key(attribute))
+      end
+
+      #
+      # @return [Object] The external value at the time the requested
+      #   read integrity override was placed.
+      #
+      def read_integrity_override(proxy, attribute:)
+        read_integrity_overrides[proxy.__attribute_key(attribute)]
+      end
+
       #----------------------------------------------------------------
       #                         Log Entries
       #----------------------------------------------------------------
 
       #
-      # @return [Array<Petra::Components::LogEntry>]
+      # @return [Petra::Components::EntrySet]
       #
       def log_entries
-        @log_entries ||= []
-      end
-
-      def log_entries_for(proxy)
-        log_entries.select { |e| e.for_object?(proxy.__object_key) }
-      end
-
-      def log_entries_of_kind(kind)
-        log_entries.select { |e| e.kind?(kind) }
-      end
-
-      #
-      # Applies all log entries which were marked as object persisted
-      # The log entry itself decides whether it is actually executed or not.
-      #
-      def apply_log_entries!
-        log_entries.select(&:object_persisted?).each(&:apply!)
+        @log_entries ||= EntrySet.new
       end
 
       #
@@ -154,15 +178,14 @@ module Petra
       #
       # @see #log_attribute_change for parameter details
       #
-      # TODO: Notice attribute changes and throw an exception (if wished)
-      #
-      def log_attribute_read(proxy, attribute:, value:, method: nil)
+      def log_attribute_read(proxy, attribute:, value:, method: nil, **options)
         add_to_read_set(proxy, attribute, value)
         add_log_entry(proxy,
                       attribute: attribute,
                       method:    method,
                       kind:      'attribute_read',
-                      value:     value)
+                      value:     value,
+                      **options)
 
         Petra.logger.info "Logged attribute read (#{attribute} => #{value})", :yellow
         true
@@ -196,14 +219,14 @@ module Petra
         # All log entries for the current object prior to this persisting method
         # have to be persisted as the object itself is.
         # This includes the object initialization log entry
-        log_entries_for(proxy).each(&:mark_as_object_persisted!)
+        log_entries.for_proxy(proxy).each(&:mark_as_object_persisted!)
 
         # All attribute reads prior to this have to be persisted
         # as they might have had impact on the current object state.
         # This does not only include the current object, but everything that was
         # read until now!
         # TODO: Could this be more intelligent?
-        log_entries_of_kind(:attribute_read).each(&:mark_as_object_persisted!)
+        log_entries.of_kind(:attribute_read).each(&:mark_as_object_persisted!)
 
         add_log_entry(proxy,
                       method:           method,
@@ -226,18 +249,54 @@ module Petra
         # Currently, this happens even if the object hasn't been persisted prior to
         # its destruction which is accepted behaviour e.g. by ActiveRecord instances.
         # We'll have to see if this should stay the common behaviour.
-        log_entries_for(proxy).each(&:mark_as_object_persisted!)
+        log_entries.for_proxy(proxy).each(&:mark_as_object_persisted!)
 
         # As for attribute persistence, every attribute which was read in the current section
         # might have had impact on the destruction of this object. Therefore, we have
         # to make sure that all these log entries will be persisted.
-        log_entries_of_kind(:attribute_read).each(&:mark_as_object_persisted!)
+        log_entries.of_kind(:attribute_read).each(&:mark_as_object_persisted!)
 
         add_log_entry(proxy,
                       kind:             'object_destruction',
                       method:           method,
                       object_persisted: true)
         true
+      end
+
+      #
+      # Logs the fact that the user decided to ignore further ReadIntegrityErrors
+      # on the given attribute as long as its external value stays the same.
+      #
+      # @param [Boolean] update_value
+      #   If +true+, a new read set entry is generated along with the RIO one.
+      #   This will case the transaction to display the new external value instead of the
+      #   one we last read and will also automatically invalidate the RIO entry which
+      #   is only kept to have the whole transaction time line.
+      #
+      def log_read_integrity_override(proxy, attribute:, external_value:, update_value: false)
+        add_log_entry(proxy,
+                      kind:           'read_integrity_override',
+                      attribute:      attribute,
+                      external_value: external_value)
+
+        # If requested, add a new read log entry for the new external value
+        if update_value
+          log_attribute_read(proxy, attribute: attribute, value: external_value, object_persisted: true)
+        end
+      end
+
+      #
+      # Logs the fact that the user decided to "undo" all previous changes
+      # made to the given attribute
+      #
+      def log_attribute_change_veto(proxy, attribute:, external_value:)
+        add_log_entry(proxy,
+                      kind:           'attribute_change_veto',
+                      attribute:      attribute,
+                      external_value: external_value)
+
+        # Also log the current external attribute value, so the transaction uses the newest available one
+        log_attribute_read(proxy, attribute: attribute, value: external_value, object_persisted: true)
       end
 
       #----------------------------------------------------------------
@@ -272,7 +331,7 @@ module Petra
       #
       def read_attributes
         cache_if_persisted(:read_attributes) do
-          log_entries_of_kind(:attribute_read).select(&:object_persisted?).each_with_object({}) do |entry, h|
+          log_entries.of_kind(:attribute_read).object_persisted.each_with_object({}) do |entry, h|
             h[entry.load_proxy] ||= []
             h[entry.load_proxy] << entry.attribute unless h[entry.load_proxy].include?(entry.attribute)
           end
@@ -285,7 +344,7 @@ module Petra
       #
       def objects
         cache_if_persisted(:all_objects) do
-          log_entries.select(&:object_persisted).map(&:load_proxy).uniq
+          log_entries.object_persisted.map(&:load_proxy).uniq
         end
       end
 
@@ -307,7 +366,7 @@ module Petra
       #
       def created_objects
         cache_if_persisted(:created_objects) do
-          log_entries_of_kind(:object_initialization).select(&:object_persisted?).map(&:load_proxy).uniq
+          log_entries.of_kind(:object_initialization).object_persisted.map(&:load_proxy).uniq
         end
       end
 
@@ -317,7 +376,7 @@ module Petra
       #
       def initialized_objects
         cache_if_persisted(:initialized_objects) do
-          log_entries_of_kind(:object_initialization).reject(&:object_persisted?).map(&:load_proxy).uniq
+          log_entries.of_kind(:object_initialization).not_object_persisted.map(&:load_proxy).uniq
         end
       end
 
@@ -339,7 +398,7 @@ module Petra
       #
       def destroyed_objects
         cache_if_persisted(:destroyed_objects) do
-          log_entries_of_kind(:object_destruction).map(&:load_proxy).uniq
+          log_entries.of_kind(:object_destruction).map(&:load_proxy).uniq
         end
       end
 
@@ -360,19 +419,17 @@ module Petra
       end
 
       #
-      # Removes all log entries for the given proxy from this section - as long
-      # as the section hasn't been persisted yet.
+      # @see Petra::Components::EntrySet#apply
       #
-      def reset_object!(proxy)
-        fail Petra::PetraError, 'An already persisted section may not be reset' if persisted?
-        @log_entries = log_entries - log_entries_for(proxy)
+      def apply_log_entries!
+        log_entries.apply!
       end
 
       #
-      # Persists the current section (resp. enqueues it to be persisted)
+      # @see Petra::Components::EntrySet#enqueue_for_persisting!
       #
       def enqueue_for_persisting!
-        log_entries.each(&:enqueue_for_persisting!)
+        log_entries.enqueue_for_persisting!
         @persisted = true
       end
 
@@ -412,8 +469,8 @@ module Petra
                                          transaction_persisted:  persisted?,
                                          new_object:             proxy.__new?,
                                          **options).tap do |entry|
-          log_entries << entry
           Petra.logger.debug "Added Log Entry: #{entry}", :yellow
+          log_entries << entry
         end
       end
 
@@ -425,11 +482,24 @@ module Petra
       # be previously persisted or not.
       #
       def load_persisted_log_entries
-        @log_entries = Petra.transaction_manager.persistence_adapter.log_entries(self)
+        @log_entries = EntrySet.new(Petra.transaction_manager.persistence_adapter.log_entries(self))
         @log_entries.each do |entry|
-          write_set[entry.attribute_key] = entry.new_value if entry.attribute_change?
-          read_set[entry.attribute_key]  = entry.value if entry.attribute_read?
+          case
+            when entry.kind?(:attribute_change)
+              write_set[entry.attribute_key] = entry.new_value
+            when entry.kind?(:attribute_read)
+              read_set[entry.attribute_key] = entry.value
+            when entry.kind?(:read_integrity_override)
+              read_integrity_overrides[entry.attribute_key] = entry.external_value
+            when entry.kind?(:attribute_change_veto)
+              attribute_change_vetoes[entry.attribute_key] = entry.external_value
+              # Remove any value changes done to the attribute previously in this section
+              # This will speed up finding active attribute change vetoes as
+              # the search is already canceled if no write set entry exists.
+              write_set.delete(entry.attribute_key)
+          end
         end
+
         @persisted = @log_entries.any?
       end
 

@@ -50,7 +50,9 @@ module Petra
       #
       def reset_transaction(transaction)
         with_transaction_lock(transaction) do
-          FileUtils.rm_r(storage_file_name('transactions', transaction.identifier))
+          if storage_file_name('transactions', transaction.identifier).exist?
+            FileUtils.rm_r(storage_file_name('transactions', transaction.identifier))
+          end
         end
       end
 
@@ -104,28 +106,25 @@ module Petra
       # TODO: Ensure that the file handle is closed when an exception is thrown.
       #
       def with_file_lock(filename, suspend: true, &block)
-        @held_file_locks ||= []
-        if @held_file_locks.include?(lock_file_name(filename))
-          block.call
-        else
-          begin
-            File.open(lock_file_name(filename), File::RDWR|File::CREAT, 0644) do |f|
+        return block.call if (@held_file_locks ||= []).include?(lock_file_name(filename))
 
-              if suspend
-                f.flock(File::LOCK_EX)
-              else
-                fail Petra::LockError unless f.flock(File::LOCK_NB|File::LOCK_EX)
-              end
+        begin
+          File.open(lock_file_name(filename), File::RDWR|File::CREAT, 0644) do |f|
 
-              Petra.logger.debug "Acquired Lock: #{filename}", :purple
-
-              @held_file_locks << lock_file_name(filename)
-              block.call
+            if suspend
+              f.flock(File::LOCK_EX)
+            else
+              fail Petra::LockError unless f.flock(File::LOCK_NB|File::LOCK_EX)
             end
-          ensure
-            Petra.logger.debug "Released Lock: #{filename}", :cyan
-            @held_file_locks.delete(lock_file_name(filename))
+
+            Petra.logger.debug "Acquired Lock: #{filename}", :purple
+
+            @held_file_locks << lock_file_name(filename)
+            block.call
           end
+        ensure
+          @held_file_locks.delete(lock_file_name(filename))
+          Petra.logger.debug "Released Lock: #{filename}", :cyan
         end
       end
 
