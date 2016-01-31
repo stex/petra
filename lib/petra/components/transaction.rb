@@ -1,6 +1,7 @@
 require 'petra/components/entry_set'
 require 'petra/components/section'
 require 'petra/components/proxy_cache'
+require 'continuation'
 
 module Petra
   module Components
@@ -202,22 +203,29 @@ module Petra
           # TODO: This should have already been filtered out by #attribute_changed?
           # return if attribute_change_veto?(proxy, attribute: attribute)
 
-          exception = Petra::WriteClashError.new(attribute:      attribute,
-                                                 object:         proxy,
-                                                 our_value:      attribute_value(proxy, attribute: attribute),
-                                                 external_value: external_value)
-          fail exception, "The attribute `#{attribute}` has been changed externally and in the transaction."
+          callcc do |continuation|
+            exception = Petra::WriteClashError.new(attribute:      attribute,
+                                                   object:         proxy,
+                                                   our_value:      attribute_value(proxy, attribute: attribute),
+                                                   external_value: external_value,
+                                                   continuation:   continuation)
+
+            fail exception, "The attribute `#{attribute}` has been changed externally and in the transaction."
+          end
         else
           # We only read this attribute before.
           # If the user (/developer) previously placed a read integrity override
           # for the current external value, we don't have to re-raise an exception about the change
           return if read_integrity_override?(proxy, attribute: attribute, external_value: external_value)
 
-          exception = Petra::ReadIntegrityError.new(attribute:       attribute,
-                                                    object:          proxy,
-                                                    last_read_value: last_read_value,
-                                                    external_value:  external_value)
-          fail exception, "The attribute `#{attribute}` has been changed externally."
+          callcc do |continuation|
+            exception = Petra::ReadIntegrityError.new(attribute:       attribute,
+                                                      object:          proxy,
+                                                      last_read_value: last_read_value,
+                                                      external_value:  external_value,
+                                                      continuation:    continuation)
+            fail exception, "The attribute `#{attribute}` has been changed externally."
+          end
         end
       end
 

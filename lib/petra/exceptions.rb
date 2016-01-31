@@ -22,15 +22,18 @@ module Petra
   end
 
   # Used whenever a configuration value differs from what petra expects it to be
-  class ConfigurationError < PetraError;
+  class ConfigurationError < PetraError
   end
 
   # Used for generic errors during transaction persistence
-  class PersistenceError < PetraError;
+  class PersistenceError < PetraError
   end
 
   # Thrown when a transaction should be persisted, but is locked by another instance
-  class TransactionLocked < PetraError;
+  class TransactionLocked < PetraError
+  end
+
+  class ContinuationError < PetraError
   end
 
   class HandlerException < ExtendedError
@@ -40,6 +43,7 @@ module Petra
     # important code which has to be executed afterwards in an `ensure`
     #
     def reset_transaction!
+      @reset = true
       raise Petra::Reset
     end
 
@@ -49,7 +53,23 @@ module Petra
     # important code which has to be executed afterwards in an `ensure`
     #
     def rollback_transaction!
+      @rollback = true
       raise Petra::Rollback
+    end
+
+    def continue!
+      fail Petra::ContinuationError, 'The transaction processing cannot be resumed.' unless continuable?
+      @continuation.call
+    end
+
+    def continuable?
+      false
+    end
+
+    protected
+
+    def continuation?
+      !!@continuation
     end
   end
 
@@ -75,6 +95,10 @@ module Petra
                                                                             attribute:      attribute,
                                                                             external_value: external_value,
                                                                             update_value:   update_value)
+    end
+
+    def continuable?
+      !@reset && !@rollback
     end
   end
 

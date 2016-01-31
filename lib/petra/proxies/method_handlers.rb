@@ -126,7 +126,7 @@ module Petra
           transaction.verify_attribute_integrity!(@proxy, attribute: method_name)
 
           transaction.attribute_value(@proxy, attribute: method_name).tap do |result|
-            Petra.logger.debug "Served value from write set: #{method_name}  => #{result}", :yellow
+            Petra.logger.debug "Served value from write set: #{method_name}  => #{result}", :yellow, :bold
           end
         elsif transaction.read_attribute_value?(@proxy, attribute: method_name)
           # If we didn't write the attribute before, we may at least have already read it.
