@@ -5,7 +5,7 @@ module Petra
       DEFAULTS = {
           :persistence_adapter_name    => 'file',
           :log_level                   => 'debug',
-          :storage_directory           => '/tmp',
+          :storage_directory           => '/tmp/petra',
           :instant_read_integrity_fail => true
       }.freeze
 
@@ -54,9 +54,9 @@ module Petra
       #
       def storage_directory(new_value = nil)
         if new_value
-          __configuration_hash[:lock_file_dir] = new_value
+          __configuration_hash[:storage_directory] = new_value
         else
-          Pathname.new(__config_or_default(:lock_file_dir))
+          Pathname.new(__config_or_default(:storage_directory))
         end
       end
 

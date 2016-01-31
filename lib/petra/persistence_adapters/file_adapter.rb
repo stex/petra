@@ -1,4 +1,5 @@
 require 'petra/persistence_adapters/adapter'
+require 'yaml'
 
 module Petra
   module PersistenceAdapters
@@ -27,7 +28,7 @@ module Petra
         with_transaction_lock(transaction.identifier) do
           return [] unless File.exists? storage_file_name('transactions', transaction.identifier)
           storage_file_name('transactions', transaction.identifier).children.select(&:directory?).map do |f|
-            YAML.load_file(f.join('information.yml').to_s)[:savepoint]
+            ::YAML.load_file(f.join('information.yml').to_s)[:savepoint]
           end
         end
       end
@@ -41,7 +42,7 @@ module Petra
           return [] unless section_dir.exist?
 
           section_dir.children.select { |f| f.extname == '.entry' }.map do |f|
-            entry_hash = YAML.load_file(f.to_s)
+            entry_hash = ::YAML.load_file(f.to_s)
             Petra::Components::LogEntry.from_hash(section, entry_hash)
           end
         end
@@ -176,7 +177,7 @@ module Petra
                         savepoint:              section.savepoint,
                         savepoint_version:      section.savepoint_version}
         with_storage_file(*dir, 'information.yml', mode: 'w') do |f|
-          YAML.dump(section_hash, f)
+          ::YAML.dump(section_hash, f)
         end
       end
 
@@ -193,7 +194,7 @@ module Petra
         t = Time.now
         filename = "#{t.to_i}.#{t.nsec}.entry"
         with_storage_file(*section_dirname(entry.section), filename, mode: 'w') do |f|
-          YAML.dump(entry.to_h(entry_identifier: filename), f)
+          ::YAML.dump(entry.to_h(entry_identifier: filename), f)
         end
         filename
       end
