@@ -56,7 +56,7 @@ module Petra
         if new_value
           __configuration_hash[:storage_directory] = new_value
         else
-          Pathname.new(__config_or_default(:storage_directory))
+          ::Pathname.new(__config_or_default(:storage_directory))
         end
       end
 

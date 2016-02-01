@@ -1,4 +1,5 @@
 require 'active_support/all'
+require 'pathname'
 
 require 'petra/core_ext'
 require 'petra/exceptions'
