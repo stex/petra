@@ -164,7 +164,7 @@ module Petra
       #----------------------------------------------------------------
 
       def current_numerical_id
-        @current_numerical_id ||= (created.max_by(&:__object_id)&.__object_id || 'new_0').match(/new_(\d+)/)[1].to_i
+        @current_numerical_id ||= (initialized_or_created.max_by(&:__object_id)&.__object_id || 'new_0').match(/new_(\d+)/)[1].to_i
       end
 
       def inc_current_numerical_id

@@ -13,6 +13,18 @@ module Petra
         @proxy_binding = proxy_binding
       end
 
+      #
+      # Helper method to call private (or public) methods on the associated
+      # proxy object. It will define an own method in this class which can be used
+      # as if it would be called directly on the proxy.
+      #
+      # @param [String, Symbol] name
+      #   the method name to be called on the proxy
+      #
+      # @param [Boolean] underscore_prefix
+      #   If set to +true+, two underscores will be prefixed to the given method name, e.g.
+      #   for +__attribute_reader?+
+      #
       def self.proxy_method(name, underscore_prefix = false)
         define_method(name) do |*args|
           if underscore_prefix
@@ -23,6 +35,9 @@ module Petra
         end
       end
 
+      #
+      # Shortcut function to call `proxy_method` for multiple functions
+      #
       def self.proxy_methods(*methods, underscore_prefix: false)
         methods.each { |m| proxy_method(m, underscore_prefix) }
       end

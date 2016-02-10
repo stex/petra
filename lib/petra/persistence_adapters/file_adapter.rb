@@ -75,7 +75,7 @@ module Petra
       end
 
       def with_object_lock(proxy, **options, &block)
-        key = proxy.__object_key.gsub('/', '-')
+        key = proxy.__object_key.gsub(/[^a-zA-Z0-9]/, '-')
         with_file_lock("proxy.#{key}", **options, &block)
       rescue Petra::LockError
         exception = Petra::LockError.new(lock_type: 'object', lock_name: proxy.__object_key)
@@ -106,10 +106,11 @@ module Petra
       #
       # @raise [Petra::LockError] If +suspend+ is set to +false+ and the lock could not be acquired
       #
-      # TODO: Ensure that the file handle is closed when an exception is thrown.
+      # TODO: sanitize file names
+      # TODO: Fix ensure and @held_file_locks
       #
       def with_file_lock(filename, suspend: true, &block)
-        return block.call if (@held_file_locks ||= []).include?(lock_file_name(filename))
+        return block.call if (@held_file_locks ||= []).include?(lock_file_name(filename).to_s)
 
         begin
           File.open(lock_file_name(filename), File::RDWR|File::CREAT, 0644) do |f|
@@ -122,12 +123,12 @@ module Petra
 
             Petra.logger.debug "Acquired Lock: #{filename}", :purple
 
-            @held_file_locks << lock_file_name(filename)
+            @held_file_locks << lock_file_name(filename).to_s
             block.call
           end
         ensure
-          @held_file_locks.delete(lock_file_name(filename))
           Petra.logger.debug "Released Lock: #{filename}", :cyan
+          @held_file_locks.delete(lock_file_name(filename).to_s)
         end
       end
 

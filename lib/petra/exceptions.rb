@@ -33,9 +33,6 @@ module Petra
   class TransactionLocked < PetraError
   end
 
-  class ContinuationError < PetraError
-  end
-
   class HandlerException < ExtendedError
     #
     # Resets the currently active transaction
@@ -143,30 +140,24 @@ module Petra
     end
   end
 
+  class ControlFlowException < PetraError
+  end
+
   # This error is thrown only to tell the transaction manager to
   # abort the current transaction's execution.
   # This is necessary e.g. after successfully committing a transaction
-  class AbortTransaction < PetraError;
+  class AbortTransaction < ControlFlowException;
   end
 
   # An error class which is never passed on out of petra.
   # It is used to cause a rollback for the currently active petra transaction
-  class Rollback < PetraError;
-  end
-
-  class ObjectException < PetraError
-
-
-  end
-
-  class ObjectReset < PetraError
-
+  class Rollback < ControlFlowException;
   end
 
   # See +Rollback+, this error class is used to trigger a complete
   # reset on the currently active petra transaction
   # TODO: Nested transactions anyone?
-  class Reset < PetraError;
+  class Reset < ControlFlowException;
   end
 
 end

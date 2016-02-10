@@ -105,7 +105,9 @@ module Petra
           begin
             Petra.logger.info "Starting transaction #{identifier}", :green
             transaction = begin_transaction(identifier)
-            yield
+            persistence_adapter.with_transaction_lock(identifier) do
+              yield
+            end
           rescue Exception => error
             handle_exception(error, transaction: transaction)
           ensure
@@ -156,16 +158,19 @@ module Petra
             reset_transaction
           when Petra::ReadIntegrityError
             reset_transaction
+            # TODO: Remove a possible continuation, we are outside of the transaction!
             raise
           # ActionView wraps errors inside an own error class. Therefore,
           # we have to extract the actual exception first.
           # TODO: Allow the registration of error handlers for certain exceptions to get rid of
           #   this very specific behaviour in petra core
+          # TODO: There is a mechanism in petra-rails' `petra_transaction` to extract
+          #   the original exceptions. May we get rid of this now?
           when -> (_) { Petra.rails? && e.is_a?(ActionView::Template::Error) }
             handle_exception(e.original_exception, transaction: transaction)
           else
             # If another exception happened, we forward it to the actual application
-            # rollback_transaction
+            rollback_transaction
             raise
         end
       end
@@ -178,6 +183,12 @@ module Petra
       def begin_transaction(identifier)
         Transaction.new(identifier: identifier).tap do |t|
           @stack.push(t)
+
+          # It is important that the after_initialize method is called **after** the
+          # transaction was pushed to the transaction stack.
+          # Otherwise, +current_transaction+ might not be available for exception handling
+          # during the initialization phase.
+          t.after_initialize
         end
       end
     end

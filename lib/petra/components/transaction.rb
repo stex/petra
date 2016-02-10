@@ -6,6 +6,7 @@ require 'continuation'
 module Petra
   module Components
     class Transaction
+      include ActiveSupport::Callbacks
 
       attr_reader :identifier
       attr_reader :persisted
@@ -27,10 +28,19 @@ module Petra
         @persisted  = false
         @committed  = false
         @reset      = false
+      end
 
+      def after_initialize
         # Initialize the current section
         current_section
       end
+
+      #----------------------------------------------------------------
+      #                          Callbacks
+      #----------------------------------------------------------------
+
+      define_callbacks :commit, :rollback, :reset
+      define_callbacks :persist
 
       #----------------------------------------------------------------
       #                          Log Entries
@@ -249,9 +259,13 @@ module Petra
 
       def sections
         # TODO: Acquire the transaction lock once here, otherwise, every section will do it.
-        @sections ||= persistence_adapter.savepoints(self).map do |savepoint|
-          Petra::Components::Section.new(self, savepoint: savepoint)
-        end.sort_by(&:savepoint_version)
+        @sections ||= begin
+          persistence_adapter.with_transaction_lock(self) do
+            persistence_adapter.savepoints(self).map do |savepoint|
+              Petra::Components::Section.new(self, savepoint: savepoint)
+            end.sort_by(&:savepoint_version)
+          end
+        end
       end
 
       #----------------------------------------------------------------
@@ -262,42 +276,44 @@ module Petra
       # Tries to commit the current transaction
       #
       def commit!
-        # Step 1: Lock this transaction so no other thread may alter it any more
-        persistence_adapter.with_transaction_lock(identifier) do
-          begin
-            # Step 2: Try to get the locks for all objects which took part in this transaction
-            #   Acquire the locks on a sorted collection to avoid Deadlocks with other transactions
-            # We do not have to lock objects which were created within the transaction
-            #   as the cannot be altered outside of it and the transaction itself is locked.
-            with_locked_objects(objects.fateful.sort.reject(&:__new?), suspend: false) do
-              # Step 3: Now that we got locks on all objects used during this transaction,
-              #   we can check whether all read attributes still have the same value.
-              #   If that's not the case, we may not proceed.
-              objects.verify_read_attributes!(force: true)
+        run_callbacks :commit do
+          # Step 1: Lock this transaction so no other thread may alter it any more
+          persistence_adapter.with_transaction_lock(identifier) do
+            begin
+              # Step 2: Try to get the locks for all objects which took part in this transaction
+              #   Acquire the locks on a sorted collection to avoid Deadlocks with other transactions
+              # We do not have to lock objects which were created within the transaction
+              #   as the cannot be altered outside of it and the transaction itself is locked.
+              with_locked_objects(objects.fateful.sort.reject(&:__new?), suspend: false) do
+                # Step 3: Now that we got locks on all objects used during this transaction,
+                #   we can check whether all read attributes still have the same value.
+                #   If that's not the case, we may not proceed.
+                objects.verify_read_attributes!(force: true)
 
-              # Step 4: Now that we know that all read values are still valid,
-              #   we may actually apply all the changes we previously logged.
-              sections.each(&:apply_log_entries!)
+                # Step 4: Now that we know that all read values are still valid,
+                #   we may actually apply all the changes we previously logged.
+                sections.each(&:apply_log_entries!)
 
-              @committed = true
-              Petra.logger.info "Committed transaction #{@identifier}", :blue, :underline
+                @committed = true
+                Petra.logger.info "Committed transaction #{@identifier}", :blue, :underline
 
-              # Step 5: Wow, me made it this far!
-              #   Now it's time to clean up and remove the data we previously persisted for this
-              #   transaction before releasing the lock on all of the objects and the transaction itself.
-              # TODO: See if this causes problems with other threads working on this transactions. Probably keep
-              #   the entries around and just mark the transaction as committed?
-              #   Idea: keep it and add a last log entry like `transaction_commit` and persist it.
-              persistence_adapter.reset_transaction(self)
+                # Step 5: Wow, me made it this far!
+                #   Now it's time to clean up and remove the data we previously persisted for this
+                #   transaction before releasing the lock on all of the objects and the transaction itself.
+                # TODO: See if this causes problems with other threads working on this transactions. Probably keep
+                #   the entries around and just mark the transaction as committed?
+                #   Idea: keep it and add a last log entry like `transaction_commit` and persist it.
+                persistence_adapter.reset_transaction(self)
+              end
+            rescue Petra::ReadIntegrityError => e
+              raise
+                # One (or more) of the attributes from our read set changed externally
+            rescue Petra::LockError => e
+              raise
+              # One (or more) of the objects could not be locked.
+              #   The object locks are freed by itself, but we have to notify
+              #   the outer application about this commit error
             end
-          rescue Petra::ReadIntegrityError => e
-            raise
-              # One (or more) of the attributes from our read set changed externally
-          rescue Petra::LockError => e
-            raise
-            # One (or more) of the objects could not be locked.
-            #   The object locks are freed by itself, but we have to notify
-            #   the outer application about this commit error
           end
         end
       end
@@ -308,27 +324,33 @@ module Petra
       # The current section will be reset, but keep the same savepoint name.
       #
       def rollback!
-        current_section.reset! unless current_section.persisted?
-        Petra.logger.warn "Rolled back section #{current_section.savepoint}", :green
+        run_callbacks :rollback do
+          current_section.reset! unless current_section.persisted?
+          Petra.logger.warn "Rolled back section #{current_section.savepoint}", :green
+        end
       end
 
       #
       # Persists the current transaction section using the configured persistence adapter
       #
       def persist!
-        current_section.enqueue_for_persisting!
-        persistence_adapter.persist!
-        Petra.logger.debug "Persisted transaction #{@identifier}", :green
-        @persisted = true
+        run_callbacks :persist do
+          current_section.enqueue_for_persisting!
+          persistence_adapter.persist!
+          Petra.logger.debug "Persisted transaction #{@identifier}", :green
+          @persisted = true
+        end
       end
 
       #
       # Completely dismisses the current transaction and removes it from the persistence storage
       #
       def reset!
-        persistence_adapter.reset_transaction(self)
-        @sections = []
-        Petra.logger.warn "Reset transaction #{@identifier}", :red
+        run_callbacks :reset do
+          persistence_adapter.reset_transaction(self)
+          @sections = []
+          Petra.logger.warn "Reset transaction #{@identifier}", :red
+        end
       end
 
       private

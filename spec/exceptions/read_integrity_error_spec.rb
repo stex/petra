@@ -78,7 +78,7 @@ describe Petra::ReadIntegrityError do
       end
 
       it 'does not re-raise an exception if we read the attribute again' do
-        expect {@user.last_name}.not_to raise_exception(Petra::ReadIntegrityError)
+        expect {@user.last_name}.not_to raise_exception
       end
     end
 
@@ -98,7 +98,7 @@ describe Petra::ReadIntegrityError do
       end
 
       it 'does not re-raise an exception if we read the attribute again' do
-        expect {@user.last_name}.not_to raise_exception(Petra::ReadIntegrityError)
+        expect {@user.last_name}.not_to raise_exception
       end
     end
   end
