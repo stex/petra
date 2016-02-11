@@ -107,7 +107,6 @@ module Petra
       # @raise [Petra::LockError] If +suspend+ is set to +false+ and the lock could not be acquired
       #
       # TODO: sanitize file names
-      # TODO: Fix ensure and @held_file_locks
       #
       def with_file_lock(filename, suspend: true, &block)
         return block.call if (@held_file_locks ||= []).include?(lock_file_name(filename).to_s)

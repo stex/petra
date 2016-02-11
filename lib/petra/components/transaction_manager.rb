@@ -104,8 +104,9 @@ module Petra
         within_instance do
           begin
             Petra.logger.info "Starting transaction #{identifier}", :green
-            transaction = begin_transaction(identifier)
+            transaction = nil
             persistence_adapter.with_transaction_lock(identifier) do
+              transaction = begin_transaction(identifier)
               yield
             end
           rescue Exception => error
