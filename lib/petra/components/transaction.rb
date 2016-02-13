@@ -277,9 +277,10 @@ module Petra
       #
       def commit!
         run_callbacks :commit do
-          # Step 1: Lock this transaction so no other thread may alter it any more
-          persistence_adapter.with_transaction_lock(identifier) do
-            begin
+          begin
+            # Step 1: Lock this transaction so no other thread may alter it any more
+            persistence_adapter.with_transaction_lock(identifier) do
+
               # Step 2: Try to get the locks for all objects which took part in this transaction
               #   Acquire the locks on a sorted collection to avoid Deadlocks with other transactions
               # We do not have to lock objects which were created within the transaction
@@ -305,15 +306,15 @@ module Petra
                 #   Idea: keep it and add a last log entry like `transaction_commit` and persist it.
                 persistence_adapter.reset_transaction(self)
               end
-            rescue Petra::ReadIntegrityError => e
-              raise
-                # One (or more) of the attributes from our read set changed externally
-            rescue Petra::LockError => e
-              raise
-              # One (or more) of the objects could not be locked.
-              #   The object locks are freed by itself, but we have to notify
-              #   the outer application about this commit error
             end
+          rescue Petra::ReadIntegrityError => e
+            raise
+              # One (or more) of the attributes from our read set changed externally
+          rescue Petra::LockError => e
+            raise
+            # One (or more) of the objects could not be locked.
+            #   The object locks are freed by itself, but we have to notify
+            #   the outer application about this commit error
           end
         end
       end
@@ -326,7 +327,7 @@ module Petra
       def rollback!
         run_callbacks :rollback do
           current_section.reset! unless current_section.persisted?
-          Petra.logger.warn "Rolled back section #{current_section.savepoint}", :green
+          Petra.logger.debug "Rolled back section #{current_section.savepoint}", :yellow
         end
       end
 

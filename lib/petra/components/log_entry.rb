@@ -14,6 +14,7 @@ module Petra
       include Comparable
       include Petra::Util::Registrable
       include Petra::Util::FieldAccessors
+
       acts_as_register :entry_type
 
       field_accessor :savepoint
@@ -32,7 +33,6 @@ module Petra
       # e.g. "User", 1 for @user.save
       # The object class is also needed to load the corresponding class configuration
       attr_reader :object_class
-      attr_reader :object_id
       attr_reader :attribute
 
       field_accessor :object_key
@@ -260,7 +260,7 @@ module Petra
       end
 
       def to_s
-        "#{section.savepoint}/#{object_id} => #{self.class.kind}"
+        "#{section.savepoint}/#{@object_id} => #{self.class.kind}"
       end
 
       protected
@@ -279,7 +279,7 @@ module Petra
       def initialize_proxy
         klass    = object_class.constantize
         instance = configurator.__inherited_value(:init_method, proc_expected: true, base: klass)
-        Petra::Proxies::ObjectProxy.for(instance, object_id: object_id)
+        Petra::Proxies::ObjectProxy.for(instance, object_id: @object_id)
       end
 
       #
@@ -295,7 +295,7 @@ module Petra
       #
       def restore_proxy
         klass    = object_class.constantize
-        instance = configurator.__inherited_value(:lookup_method, object_id, proc_expected: true, base: klass)
+        instance = configurator.__inherited_value(:lookup_method, @object_id, proc_expected: true, base: klass)
         Petra::Proxies::ObjectProxy.for(instance)
       end
 

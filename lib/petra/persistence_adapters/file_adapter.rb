@@ -61,24 +61,27 @@ module Petra
 
       def with_global_lock(**options, &block)
         with_file_lock('global.persistence', **options, &block)
-      rescue Petra::LockError
-        exception = Petra::LockError.new(lock_type: 'global', lock_name: 'global')
+      rescue Petra::LockError => e
+        raise e if e.processed?
+        exception = Petra::LockError.new(lock_type: 'global', lock_name: 'global', processed: true)
         raise exception, 'The global lock could not be acquired.'
       end
 
       def with_transaction_lock(transaction, **options, &block)
         identifier = transaction.is_a?(Petra::Components::Transaction) ? transaction.identifier : transaction
         with_file_lock("transaction.#{identifier}", **options, &block)
-      rescue Petra::LockError
-        exception = Petra::LockError.new(lock_type: 'transaction', lock_name: identifier)
+      rescue Petra::LockError => e
+        raise e if e.processed?
+        exception = Petra::LockError.new(lock_type: 'transaction', lock_name: identifier, processed: true)
         raise exception, "The transaction lock '#{identifier}' could not be acquired."
       end
 
       def with_object_lock(proxy, **options, &block)
         key = proxy.__object_key.gsub(/[^a-zA-Z0-9]/, '-')
         with_file_lock("proxy.#{key}", **options, &block)
-      rescue Petra::LockError
-        exception = Petra::LockError.new(lock_type: 'object', lock_name: proxy.__object_key)
+      rescue Petra::LockError => e
+        raise e if e.processed?
+        exception = Petra::LockError.new(lock_type: 'object', lock_name: proxy.__object_key, processed: true)
         raise exception, "The object lock '#{proxy.__object_id}' could not be acquired."
       end
 
@@ -109,25 +112,32 @@ module Petra
       # TODO: sanitize file names
       #
       def with_file_lock(filename, suspend: true, &block)
-        return block.call if (@held_file_locks ||= []).include?(lock_file_name(filename).to_s)
+        Thread.current[:__petra_file_locks] ||= []
+        lock_held = Thread.current[:__petra_file_locks].include?(lock_file_name(filename).to_s)
 
-        begin
-          File.open(lock_file_name(filename), File::RDWR|File::CREAT, 0644) do |f|
+        return block.call if lock_held
 
-            if suspend
-              f.flock(File::LOCK_EX)
-            else
-              fail Petra::LockError unless f.flock(File::LOCK_NB|File::LOCK_EX)
+        File.open(lock_file_name(filename), File::RDWR|File::CREAT, 0644) do |f|
+          if suspend
+            f.flock(File::LOCK_EX)
+          else
+            unless f.flock(File::LOCK_EX|File::LOCK_NB)
+              Petra.logger.debug "#{Thread.current.name}: Could not acquire '#{filename}'", :red
+              fail Petra::LockError
             end
-
-            Petra.logger.debug "Acquired Lock: #{filename}", :purple
-
-            @held_file_locks << lock_file_name(filename).to_s
-            block.call
           end
-        ensure
-          Petra.logger.debug "Released Lock: #{filename}", :cyan
-          @held_file_locks.delete(lock_file_name(filename).to_s)
+
+          Petra.logger.debug "#{Thread.current.name}: Acquired Lock: #{filename}", :purple
+
+          Thread.current[:__petra_file_locks] << lock_file_name(filename).to_s
+
+          begin
+            block.call
+          ensure
+            f.flock(File::LOCK_UN)
+            Petra.logger.debug "#{Thread.current.name}: Released Lock: #{filename}", :cyan
+            Thread.current[:__petra_file_locks].delete(lock_file_name(filename).to_s)
+          end
         end
       end
 

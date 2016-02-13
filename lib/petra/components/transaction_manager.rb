@@ -54,7 +54,7 @@ module Petra
       #
       def reset_transaction
         @stack.last.reset!
-        @stack.pop
+        fail Petra::AbortTransaction
       end
 
       #
@@ -65,7 +65,7 @@ module Petra
       #
       def rollback_transaction
         @stack.last.rollback!
-        @stack.pop
+        fail Petra::AbortTransaction
       end
 
       #
@@ -73,7 +73,7 @@ module Petra
       #
       def commit_transaction
         @stack.last.commit!
-        @stack.pop
+        fail Petra::AbortTransaction
       end
 
       #
@@ -87,10 +87,6 @@ module Petra
         @stack.pop
       end
 
-      def reset_object(proxy)
-        current_transaction.reset_object!(proxy)
-      end
-
       #
       # Wraps the given block in a petra transaction (section)
       #
@@ -100,17 +96,20 @@ module Petra
       #
       # @return [String] the transaction's identifier
       #
-      def self.with_transaction(identifier: SecureRandom.uuid)
+      def self.with_transaction(identifier: SecureRandom.uuid, &block)
         within_instance do
+          Petra.logger.info "Starting transaction #{identifier}", :green
+
           begin
-            Petra.logger.info "Starting transaction #{identifier}", :green
-            transaction = nil
-            persistence_adapter.with_transaction_lock(identifier) do
-              transaction = begin_transaction(identifier)
-              yield
-            end
+            transaction = begin_transaction(identifier)
+            yield
+          rescue Petra::Retry
+            Petra.logger.debug "Re-trying transaction #{identifier}", :blue
+            transaction.rollback!
+            @stack.pop
+            retry
           rescue Exception => error
-            handle_exception(error, transaction: transaction)
+            handle_exception(error, transaction: transaction, &block)
           ensure
             # If we made it through the transaction section without raising
             # any exception, we simply want to persist the performed transaction steps.
@@ -125,6 +124,9 @@ module Petra
                 raise
               end
             end
+
+            # Remove the current transaction from the stack
+            @stack.pop
           end
         end
 
@@ -154,13 +156,14 @@ module Petra
       def handle_exception(e, transaction:)
         case e
           when Petra::Rollback
-            rollback_transaction
+            transaction.rollback!
           when Petra::Reset
-            reset_transaction
-          when Petra::ReadIntegrityError
-            reset_transaction
+            transaction.reset!
+          when Petra::ReadIntegrityError, Petra::WriteClashError
+            transaction.reset!
             # TODO: Remove a possible continuation, we are outside of the transaction!
             raise
+          when Petra::AbortTransaction
           # ActionView wraps errors inside an own error class. Therefore,
           # we have to extract the actual exception first.
           # TODO: Allow the registration of error handlers for certain exceptions to get rid of
@@ -171,7 +174,7 @@ module Petra
             handle_exception(e.original_exception, transaction: transaction)
           else
             # If another exception happened, we forward it to the actual application
-            rollback_transaction
+            transaction.reset!
             raise
         end
       end

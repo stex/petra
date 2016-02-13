@@ -34,7 +34,7 @@ module Petra
       end
 
       def colored_string(string, color, format)
-        "\e[#{FORMATS[format]};#{STRING_COLORS[color.to_sym]}m#{string}\e[0m"
+        "\e[#{Petra::Util::Debug::FORMATS[format]};#{Petra::Util::Debug::STRING_COLORS[color.to_sym]}m#{string}\e[0m"
       end
 
       module_function :log, :logger, :colored_string

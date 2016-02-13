@@ -34,6 +34,11 @@ module Petra
   end
 
   class HandlerException < ExtendedError
+
+    def retry!
+      fail Petra::Retry
+    end
+
     #
     # Resets the currently active transaction
     # This will stop the transaction execution, so make sure that you wrap
@@ -41,7 +46,7 @@ module Petra
     #
     def reset_transaction!
       @reset = true
-      raise Petra::Reset
+      Petra.transaction_manager.reset_transaction
     end
 
     #
@@ -51,7 +56,7 @@ module Petra
     #
     def rollback_transaction!
       @rollback = true
-      raise Petra::Rollback
+      Petra.transaction_manager.rollback_transaction
     end
 
     def continue!
@@ -130,13 +135,18 @@ module Petra
   #----------------------------------------------------------------
 
   # Used internally when a lock could not be acquired (non-suspending locking)
-  class LockError < PetraError
+  class LockError < HandlerException
     attr_reader :lock_type
     attr_reader :lock_name
 
-    def initialize(lock_type: 'general', lock_name: 'general')
+    def initialize(lock_type: 'general', lock_name: 'general', processed: false)
       @lock_type = lock_type
       @lock_name = lock_name
+      @processed = processed
+    end
+
+    def processed?
+      @processed
     end
   end
 
@@ -157,7 +167,10 @@ module Petra
   # See +Rollback+, this error class is used to trigger a complete
   # reset on the currently active petra transaction
   # TODO: Nested transactions anyone?
-  class Reset < ControlFlowException;
+  class Reset < ControlFlowException
+  end
+
+  class Retry < ControlFlowException
   end
 
 end
