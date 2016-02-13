@@ -134,6 +134,7 @@ module Petra
           begin
             block.call
           ensure
+            # Should be done automatically when the file handle is closed, but who knows
             f.flock(File::LOCK_UN)
             Petra.logger.debug "#{Thread.current.name}: Released Lock: #{filename}", :cyan
             Thread.current[:__petra_file_locks].delete(lock_file_name(filename).to_s)

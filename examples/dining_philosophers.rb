@@ -1,10 +1,6 @@
 $: << File.join(File.dirname(__FILE__), '..', 'lib')
 require 'petra'
 
-def colored_string(string, color, format)
-  "\e[#{Petra::Util::Debug::FORMATS[format]};#{Petra::Util::Debug::STRING_COLORS[color.to_sym]}m#{string}\e[0m"
-end
-
 class Philosopher
   attr_reader :number
 
@@ -39,7 +35,6 @@ class Philosopher
         take_stick(@right_stick.petra)
         Petra.commit!
       rescue Petra::LockError => e
-        # puts "#{Thread.current.name}: LockError(take) - #{e.message}"
         e.retry!
       rescue Petra::ReadIntegrityError, Petra::WriteClashError => e
         e.retry!
@@ -84,10 +79,8 @@ class Stick < Mutex
 
   def taken=(new_value)
     if new_value
-      # puts "#{Thread.current.name} wants to take Stick ##{@number}"
       try_lock || fail(Exception, 'Already locked!')
     else
-      # puts "#{Thread.current.name} wants to put Stick ##{@number} away"
       unlock
     end
   end
@@ -121,10 +114,9 @@ Thread::abort_on_exception = true
 sticks = 5.times.map { |i| Stick.new(i) }
 philosophers = 5.times.map { |i| Philosopher.new(i, sticks[i], sticks[(i + 1) % 5]) }
 
-threads = philosophers.map do |phil|
+philosophers.map do |phil|
   t = Thread.new { phil.live }
   t.name = "Philosopher #{phil.number}"
-  t
 end
 
 loop do
@@ -135,7 +127,6 @@ loop do
   end
 
   STDOUT.write("\r")
-  # STDOUT.flush
   sleep(0.2)
 end
 

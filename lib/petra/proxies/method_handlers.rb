@@ -169,8 +169,8 @@ module Petra
       #
       # TODO: Log parameters given to the persistence method so they can be used during the commit phase
       #
-      def handle_object_persistence(method_name, *)
-        transaction.log_object_persistence(@proxy, method: method_name)
+      def handle_object_persistence(method_name, *args)
+        transaction.log_object_persistence(@proxy, method: method_name, :args => args)
         # TODO: Find a better return value for pure persistence calls
         true
       end

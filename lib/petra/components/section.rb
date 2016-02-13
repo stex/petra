@@ -215,7 +215,7 @@ module Petra
       # @param [String, Symbol] method
       #   The method which caused the persistence change
       #
-      def log_object_persistence(proxy, method: nil)
+      def log_object_persistence(proxy, method: nil, args: [])
         # All log entries for the current object prior to this persisting method
         # have to be persisted as the object itself is.
         # This includes the object initialization log entry
@@ -231,7 +231,8 @@ module Petra
         add_log_entry(proxy,
                       method:           method,
                       kind:             'object_persistence',
-                      object_persisted: true)
+                      object_persisted: true,
+                      args:             args)
 
         true
       end
