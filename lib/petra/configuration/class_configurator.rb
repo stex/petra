@@ -33,6 +33,17 @@ module Petra
       #                      Configuration Keys
       #----------------------------------------------------------------
 
+      # TODO LIST:
+      #   - Rails' routes like configurators for method handlers:
+      #     - Allow attribute writers without parameters. These will need a value the
+      #       write set entry is set to. An example here would be `lock!` which sets `locked = true` internally
+      #     - Methods should get an option which will set their generated log entries
+      #       to not be executed. This is necessary if e.g. a setter method is also a persistence method
+      #       and would re-set the attribute - fine in many places, but think about a mutex.
+      #     example:
+      #       attribute_writers do
+      #         lock! :locked => true
+      #     - Usage of method_missing with (**options)?
       #
       # Sets whether instances of this class should be wrapped in an ObjectProxy
       # if this is not directly done by the programmer, e.g. as return value

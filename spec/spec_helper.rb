@@ -1,5 +1,6 @@
 $LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
 require 'petra'
+require 'petra/util/test_helpers'
 require 'byebug'
 
 Dir[Petra.root.join('../spec/support/**/*.rb')].each { |f| require f }
@@ -65,4 +66,6 @@ RSpec.configure do |config|
   # test failures related to randomization by passing the same `--seed` value
   # as the one that triggered the failure.
   Kernel.srand config.seed
+
+  config.include Petra::Util::TestHelpers
 end

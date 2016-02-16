@@ -49,6 +49,8 @@ module Petra
       # Note that an attribute counts as `altered` even if it was reset to its original
       # value in a later transaction step.
       #
+      # @deprecated
+      #
       # TODO: Check for dynamic attribute readers?
       #
       def __original_attribute?(attribute_name)
