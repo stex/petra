@@ -5,7 +5,6 @@ module Petra
       DEFAULTS = {
           :persistence_adapter_name    => 'file',
           :log_level                   => 'debug',
-          :storage_directory           => '/tmp/petra',
           :instant_read_integrity_fail => true
       }.freeze
 
@@ -27,6 +26,8 @@ module Petra
         end
       end
 
+      alias_method :instantly_fail_on_read_integrity_errors, :instant_read_integrity_fail
+
       #
       # Sets the adapter to be used as transaction persistence adapter.
       # An adapter has to be registered before it may be used (see Adapter)
@@ -44,19 +45,6 @@ module Petra
           __configuration_hash[:persistence_adapter_name] = name
         else
           Petra::PersistenceAdapters::Adapter[__config_or_default(:persistence_adapter_name)]
-        end
-      end
-
-      #
-      # Sets/gets the directory petra may store its various files in.
-      # This currently includes lock files and the file persistence adapter
-      # TODO: Move this to adapter configurations?
-      #
-      def storage_directory(new_value = nil)
-        if new_value
-          __configuration_hash[:storage_directory] = new_value
-        else
-          ::Pathname.new(__config_or_default(:storage_directory))
         end
       end
 

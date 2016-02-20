@@ -4,6 +4,22 @@ require 'yaml'
 module Petra
   module PersistenceAdapters
     class FileAdapter < Adapter
+
+      #----------------------------------------------------------------
+      #                        Configuration
+      #----------------------------------------------------------------
+
+      # TODO: change this to use e.g. the field accessors
+      class << self
+        def storage_directory
+          ::Pathname.new(@storage_directory || '/tmp/petra')
+        end
+
+        def storage_directory=(new_value)
+          @storage_directory = new_value
+        end
+      end
+
       def persist!
         return true if queue.empty?
 
@@ -149,7 +165,7 @@ module Petra
       #   storage_file_name('oompa', 'loompa')
       #
       def storage_file_name(*parts)
-        Petra.configuration.storage_directory.join(*parts)
+        self.class.storage_directory.join(*parts)
       end
 
       #

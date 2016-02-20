@@ -52,7 +52,7 @@ module Petra
       #
       # @param [Proc, NilClass] block
       #   As this method itself accepts a block, a proc passed to
-      #   method_missing has to be passed in in its normal paramter form
+      #   method_missing has to be passed in in its normal parameter form
       #
       def execute_missing_queue(method_name, *args, block: nil)
         yield queue = []

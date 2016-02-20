@@ -6,7 +6,7 @@ class Philosopher
 
   def initialize(number, *sticks)
     @number = number
-    @left_stick, @right_stick = sticks
+    @left_stick, @right_stick = sticks.map(&:petra)
   end
 
   def eating?
@@ -31,8 +31,8 @@ class Philosopher
   def take_sticks
     Petra.transaction(identifier: "philosopher_#{@number}") do
       begin
-        take_stick(@left_stick.petra)
-        take_stick(@right_stick.petra)
+        take_stick(@left_stick)
+        take_stick(@right_stick)
         Petra.commit!
       rescue Petra::LockError => e
         e.retry!
@@ -44,8 +44,8 @@ class Philosopher
 
   def put_sticks
     Petra.transaction(identifier: "philosopher_#{@number}") do
-      put_stick(@left_stick.petra)
-      put_stick(@right_stick.petra)
+      put_stick(@left_stick)
+      put_stick(@right_stick)
       Petra.commit!
     end
   end
