@@ -270,7 +270,7 @@ module Petra
       #
       # @param [Boolean] update_value
       #   If +true+, a new read set entry is generated along with the RIO one.
-      #   This will case the transaction to display the new external value instead of the
+      #   This will cause the transaction to display the new external value instead of the
       #   one we last read and will also automatically invalidate the RIO entry which
       #   is only kept to have the whole transaction time line.
       #

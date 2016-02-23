@@ -180,6 +180,8 @@ module Petra
         begin
           case v
             when Proc
+              # TODO: We might need the base class here as a configuration
+              # is passed on to a class's descendents. When initializing an object, the actual class IS needed.
               v.call(*args)
             when String, Symbol
               return __send_to_base(base, method: v, args: args, key: key) if proc_expected

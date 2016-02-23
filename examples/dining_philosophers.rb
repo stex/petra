@@ -1,6 +1,10 @@
 $: << File.join(File.dirname(__FILE__), '..', 'lib')
 require 'petra'
 
+# This file contains a transaction based solution to the dining philosophers problem
+# with five philosophers. It uses the transactions' retry mechanic to ensure
+# that both sticks have to be taken at the same time.
+
 class Philosopher
   attr_reader :number
 
@@ -109,6 +113,8 @@ Petra.configure do
   end
 end
 
+# If not set, a thread would silently fail without
+# interrupting the main thread.
 Thread::abort_on_exception = true
 
 sticks = 5.times.map { |i| Stick.new(i) }
@@ -119,6 +125,9 @@ philosophers.map do |phil|
   t.name = "Philosopher #{phil.number}"
 end
 
+
+# The output may contain some invalid states as it might happen
+# during a commit phase with only one stick taken.
 loop do
   philosophers.each_with_index do |phil, idx|
     stick = sticks[idx]
