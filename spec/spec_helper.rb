@@ -6,8 +6,8 @@ require 'byebug'
 Dir[Petra.root.join('../spec/support/**/*.rb')].each { |f| require f }
 
 Petra.configure do
-  log_level :debug
-  storage_directory Petra.root.join('..', 'spec', 'tmp')
+  log_level :warn
+  persistence_adapter.storage_directory = Petra.root.join('..', 'spec', 'tmp')
   true
 end
 

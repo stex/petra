@@ -180,9 +180,9 @@ module Petra
         begin
           case v
             when Proc
-              # TODO: We might need the base class here as a configuration
-              # is passed on to a class's descendents. When initializing an object, the actual class IS needed.
-              v.call(*args)
+              # see #__send_to_base
+              return v.call(*(([*args, base][0, v.arity]))) if proc_expected
+              v.call(*(args[0, v.arity]))
             when String, Symbol
               return __send_to_base(base, method: v, args: args, key: key) if proc_expected
               v
@@ -249,7 +249,16 @@ module Petra
           end
         end
 
-        base.send(method.to_sym, *args)
+        # It might happen that the given method name does not accept all of the given
+        # arguments, most likely because they are not needed to make the necessary
+        # decisions anyway.
+        # Therefore, only the correct amount of arguments is passed to the function, e.g.
+        # args[0,2] for a method with arity 2
+        base.send(method.to_sym, *(__args_for_arity(base, method, args)))
+      end
+
+      def __args_for_arity(base, method, args)
+        args[0, base.method(method.to_sym).arity]
       end
 
       #
