@@ -102,11 +102,11 @@ module Petra
       # an artificial ID
       #
       def __object_id
-        if __new?
-          @__object_id ||= transaction.objects.next_id
-        else
-          @__object_id ||= object_config(:id_method, proc_expected: true, base: proxied_object)
-        end
+        @__object_id ||= if __new?
+                           transaction.objects.next_id
+                         else
+                           object_config(:id_method, proc_expected: true, base: proxied_object)
+                         end
       end
 
       #

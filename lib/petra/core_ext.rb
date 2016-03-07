@@ -15,7 +15,7 @@ module Petra
         end
 
         if frozen?
-          Petra::Proxies::ObjectProxy.for(self)
+          Petra::Proxies::ObjectProxy.for(self, inherited: inherited)
         else
           @__petra_proxy ||= Petra::Proxies::ObjectProxy.for(self, inherited: inherited)
         end

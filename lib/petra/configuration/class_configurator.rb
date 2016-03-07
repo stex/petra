@@ -171,7 +171,7 @@ module Petra
         # As the setting blocks are saved as Proc objects (which are run
         # in their textual scope) and not lambdas (which are run in their caller's scope),
         # Ruby does not allow using the `return` keyword while being inside the
-        # block as there is no point to jump back to in their textual scope.
+        # block as method the proc was defined in might have already been returned.
         #
         # When configuring petra using blocks, it is advised to use `next`
         # instead of `return` (which will jump back to the correct position),
@@ -200,8 +200,8 @@ module Petra
       #
       # @return [TrueClass, FalseClass] +true+ if there is a custom setting
       #
-      def __value?(name)
-        __configuration.key?(name.to_sym)
+      def __value?(key)
+        __configuration.key?(key.to_sym)
       end
 
       #
@@ -209,19 +209,19 @@ module Petra
       # with the given name in the current class' ancestors if
       # itself does not have a custom value set.
       #
-      def __inherited_value(name, *args)
+      def __inherited_value(key, *args)
         configurator = self
 
         # Search for a custom configuration in the current class and its superclasses
         # until we either reach Object (the lowest level ignoring BasicObject) or
         # found a custom setting.
-        until (klass = configurator.send(:configured_class)) == Object || configurator.__value?(name)
+        until (klass = configurator.send(:configured_class)) == Object || configurator.__value?(key)
           configurator = Petra.configuration.class_configurator(klass.superclass)
         end
 
         # By now, we have either reached the Object level or found a value.
         # In either case, we are save to retrieve it.
-        configurator.__value(name, *args)
+        configurator.__value(key, *args)
       end
 
       private
@@ -257,8 +257,14 @@ module Petra
         base.send(method.to_sym, *(__args_for_arity(base, method, args)))
       end
 
+      #
+      # Takes as many elements from +args+ as the given method accepts
+      # If a method with variable arguments is given (def something(*args)),
+      # all arguments are returned
+      #
       def __args_for_arity(base, method, args)
-        args[0, base.method(method.to_sym).arity]
+        arity = base.method(method.to_sym).arity
+        arity >= 0 ? args[0, arity] : args
       end
 
       #

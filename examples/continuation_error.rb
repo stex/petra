@@ -80,11 +80,8 @@ def transaction(id_no, &block)
   Petra.transaction(identifier: eval("$t_id_#{id_no}")) do
     begin
       block.call
-    rescue Petra::ReadIntegrityError => e
+    rescue Petra::ValueComparisonError => e
       e.ignore!
-      e.continue!
-    rescue Petra::WriteClashError => e
-      e.use_ours!
       e.continue!
     end
   end

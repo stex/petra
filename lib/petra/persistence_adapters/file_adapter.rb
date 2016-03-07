@@ -79,7 +79,7 @@ module Petra
         with_file_lock('global.persistence', **options, &block)
       rescue Petra::LockError => e
         raise e if e.processed?
-        exception = Petra::LockError.new(lock_type: 'global', lock_name: 'global', processed: true)
+        exception = Petra::LockError.new(lock_type: 'global', lock_name: 'global.persistence', processed: true)
         raise exception, 'The global lock could not be acquired.'
       end
 
@@ -180,7 +180,7 @@ module Petra
       end
 
       #
-      # Opens a file within the storage directory and returns its handle
+      # Opens a file within the storage directory and yields its handle
       #
       def with_storage_file(*parts, mode: 'r', perm: 0644, &block)
         File.open(storage_file_name(*parts), mode, perm, &block)

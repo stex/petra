@@ -134,6 +134,8 @@ module Petra
       # we have to retrieve them from the transaction's write set.
       #
       def handle_attribute_read(method_name, *args)
+        # We wrote this attribute before, so we have to serve its value
+        # from the transaction's write set
         if transaction.attribute_value?(@proxy, attribute: method_name)
           # As we read this attribute before, we have the value we read back then on record.
           # Therefore, we may check if the value changed in the mean time which would invalidate
@@ -172,6 +174,14 @@ module Petra
       def handle_object_persistence(method_name, *args)
         transaction.log_object_persistence(@proxy, method: method_name, :args => args)
         # TODO: Find a better return value for pure persistence calls
+        true
+      end
+
+      #
+      # Handles calls to a method which destroys the proxied object
+      #
+      def handle_object_destruction(method_name, *args)
+        transaction.log_object_destruction(@proxy, method: method_name, :args => args)
         true
       end
 

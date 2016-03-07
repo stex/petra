@@ -164,6 +164,7 @@ module Petra
       #----------------------------------------------------------------
 
       def current_numerical_id
+        # FIXME: The string comparison will not work for numbers > 10! It has to be replaced with a numeric comparison!
         @current_numerical_id ||= (initialized_or_created.max_by(&:__object_id)&.__object_id || 'new_0').match(/new_(\d+)/)[1].to_i
       end
 
