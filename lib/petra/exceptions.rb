@@ -7,7 +7,7 @@ module Petra
   #----------------------------------------------------------------
 
   # Generic error class wrapping all custom petra exceptions
-  class PetraError < StandardError;
+  class PetraError < StandardError
   end
 
   #
@@ -161,12 +161,12 @@ module Petra
   # This error is thrown only to tell the transaction manager to
   # abort the current transaction's execution.
   # This is necessary e.g. after successfully committing a transaction
-  class AbortTransaction < ControlFlowException;
+  class AbortTransaction < ControlFlowException
   end
 
   # An error class which is never passed on out of petra.
   # It is used to cause a rollback for the currently active petra transaction
-  class Rollback < ControlFlowException;
+  class Rollback < ControlFlowException
   end
 
   # See +Rollback+, this error class is used to trigger a complete
