@@ -5,9 +5,9 @@ module Petra
     class Base
 
       DEFAULTS = {
-          :persistence_adapter_name    => 'file',
-          :log_level                   => 'debug',
-          :instant_read_integrity_fail => true
+          persistence_adapter_name: 'file',
+          log_level: 'debug',
+          instant_read_integrity_fail: true
       }.freeze
 
       #----------------------------------------------------------------

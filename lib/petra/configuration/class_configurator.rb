@@ -7,17 +7,17 @@ module Petra
     class ClassConfigurator < Configurator
 
       DEFAULTS = {
-          :proxy_instances           => false,
-          :mixin_module_proxies      => true,
-          :use_specialized_proxy     => true,
-          :id_method                 => :object_id,
-          :lookup_method             => ->(id) { ObjectSpace._id2ref(id.to_i) },
-          :init_method               => :new,
-          :attribute_reader?         => false,
-          :attribute_writer?         => ->(name) { /=$/ === name },
-          :dynamic_attribute_reader? => false,
-          :persistence_method?       => false,
-          :destruction_method?       => false
+          proxy_instances: false,
+          mixin_module_proxies: true,
+          use_specialized_proxy: true,
+          id_method: :object_id,
+          lookup_method: ->(id) { ObjectSpace._id2ref(id.to_i) },
+          init_method: :new,
+          attribute_reader?: false,
+          attribute_writer?: ->(name) { /=$/ === name },
+          dynamic_attribute_reader?: false,
+          persistence_method?: false,
+          destruction_method?: false
       }.freeze
 
       #

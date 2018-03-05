@@ -9,7 +9,7 @@ module Petra
         end
 
         attr_reader :proxy
-        delegate :transaction, :to => :@proxy
+        delegate :transaction, to: :@proxy
 
         class << self
           def constraints

@@ -18,7 +18,7 @@ module Petra
 
       CLASS_NAMES = %w(Object).freeze
 
-      delegate :to_s, :to => :proxied_object
+      delegate :to_s, to: :proxied_object
 
       #
       # Do not create new proxies for already proxied objects.

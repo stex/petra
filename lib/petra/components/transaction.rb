@@ -23,7 +23,7 @@ module Petra
                :log_object_persistence,
                :log_attribute_read,
                :log_object_initialization,
-               :log_object_destruction, :to => :current_section
+               :log_object_destruction, to: :current_section
 
       def initialize(identifier:)
         @identifier = identifier

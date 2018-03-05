@@ -140,7 +140,7 @@ module Petra
         self.class.inherited_config_for(proxied_object, name, *args)
       end
 
-      delegate :inspect, :to => :proxied_object
+      delegate :inspect, to: :proxied_object
 
       private
 

@@ -178,9 +178,9 @@ module Petra
       #
       def self.from_hash(section, fields)
         log!(fields.delete('kind'),
-             :section               => section,
-             :object_persisted      => true,
-             :transaction_persisted => true,
+             section: section,
+             object_persisted: true,
+             transaction_persisted: true,
              **fields.symbolize_keys)
       end
 

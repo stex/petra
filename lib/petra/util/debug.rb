@@ -3,17 +3,17 @@
 module Petra
   module Util
     module Debug
-      STRING_COLORS = {:light_gray => 90,
-                       :yellow     => 33,
-                       :green      => 32,
-                       :red        => 31,
-                       :purple     => 35,
-                       :cyan       => 36,
-                       :blue       => 34}
+      STRING_COLORS = {light_gray: 90,
+                       yellow: 33,
+                       green: 32,
+                       red: 31,
+                       purple: 35,
+                       cyan: 36,
+                       blue: 34}
 
-      FORMATS = {:default   => 0,
-                 :bold      => 1,
-                 :underline => 4}
+      FORMATS = {default: 0,
+                 bold: 1,
+                 underline: 4}
 
       [:debug, :info, :warn, :error].each do |level|
         define_method level do |message, color = :light_gray, format = :default|

@@ -32,7 +32,7 @@ module Petra
       # cache entry couldn't be found.
       alias_method :[], :fetch
 
-      delegate :sections, :current_section, :verify_attribute_integrity!, :to => :@transaction
+      delegate :sections, :current_section, :verify_attribute_integrity!, to: :@transaction
 
       #
       # @return [Hash<Petra::Proxies::ObjectProxy, Array<String,Symbol>>]
