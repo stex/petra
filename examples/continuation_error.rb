@@ -82,7 +82,7 @@ end
 
 # rubocop:disable Security/Eval
 def transaction(id_no)
-  Petra.transaction(identifier: eval("$t_id_#{id_no}", __FILE__, __LINE__)) do
+  Petra.transaction(identifier: eval("$t_id_#{id_no}", nil, __FILE__, __LINE__)) do
     begin
       yield
     rescue Petra::ValueComparisonError => e

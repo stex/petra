@@ -254,7 +254,7 @@ module Petra
       #----------------------------------------------------------------
 
       def current_section
-        @section ||= Petra::Components::Section.new(self).tap do |s|
+        @current_section ||= Petra::Components::Section.new(self).tap do |s|
           sections << s
         end
       end

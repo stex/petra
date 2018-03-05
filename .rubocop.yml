@@ -81,4 +81,3 @@ Metrics/BlockLength:
 # on a lower level than a StandardError is raised. We are re-raising them anyway.
 Lint/RescueException:
   Enabled: false
-

@@ -256,7 +256,7 @@ module Petra
       # @return [Petra::Proxies::ObjectProxy] the proxy this log entry was made for
       #
       def load_proxy
-        @proxy ||= transaction.objects.fetch(object_key) do
+        @load_proxy ||= transaction.objects.fetch(object_key) do
           new_object? ? initialize_proxy : restore_proxy
         end
       end
