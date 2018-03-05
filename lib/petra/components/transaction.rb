@@ -203,12 +203,16 @@ module Petra
         # If nothing changed, we're done
         return if external_value == last_read_value
 
+        # The user has previously chosen to ignore the external changes to this attribute (using ignore!).
+        # Therefore, we do not have to raise another exception
+        # OR
+        # We only read this attribute before.
+        # If the user (/developer) previously placed a read integrity override
+        # for the current external value, we don't have to re-raise an exception about the change
+        return if read_integrity_override?(proxy, attribute: attribute, external_value: external_value)
+
         if attribute_changed?(proxy, attribute: attribute)
           # We read AND changed this attribute before
-
-          # The user has previously chosen to ignore the external changes to this attribute (using ignore!).
-          # Therefore, we do not have to raise another exception
-          return if read_integrity_override?(proxy, attribute: attribute, external_value: external_value)
 
           # If there is already an active attribute change veto (meaning that we didn't change
           # the attribute again after the last one), we don't have to raise another exception about it.
@@ -225,11 +229,6 @@ module Petra
             fail exception, "The attribute `#{attribute}` has been changed externally and in the transaction."
           end
         else
-          # We only read this attribute before.
-          # If the user (/developer) previously placed a read integrity override
-          # for the current external value, we don't have to re-raise an exception about the change
-          return if read_integrity_override?(proxy, attribute: attribute, external_value: external_value)
-
           callcc do |continuation|
             exception = Petra::ReadIntegrityError.new(attribute:       attribute,
                                                       object:          proxy,
