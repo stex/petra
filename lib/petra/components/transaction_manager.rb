@@ -165,6 +165,7 @@ module Petra
             # TODO: Remove a possible continuation, we are outside of the transaction!
             raise
           when Petra::AbortTransaction
+            nil
           # ActionView wraps errors inside an own error class. Therefore,
           # we have to extract the actual exception first.
           # TODO: Allow the registration of error handlers for certain exceptions to get rid of
