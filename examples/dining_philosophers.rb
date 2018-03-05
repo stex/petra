@@ -81,7 +81,7 @@ class Stick < Mutex
     @number = number
   end
 
-  alias_method :taken, :locked?
+  alias taken locked?
 
   def taken=(new_value)
     if new_value

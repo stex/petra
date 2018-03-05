@@ -14,7 +14,7 @@ module Petra
       acts_as_register :adapter
 
       class << self
-        alias_method :[], :registered_adapter
+        alias [] registered_adapter
       end
 
       #

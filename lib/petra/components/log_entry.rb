@@ -48,9 +48,9 @@ module Petra
 
       attr_reader :section
 
-      alias_method :object_persisted?, :object_persisted
-      alias_method :transaction_persisted?, :transaction_persisted
-      alias_method :new_object?, :new_object
+      alias object_persisted? object_persisted
+      alias transaction_persisted? transaction_persisted
+      alias new_object? new_object
 
       def self.log!(kind, section:, **fields)
         fail ArgumentError, "#{kind} is not a valid entry type" unless registered_entry_type?(kind)

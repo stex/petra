@@ -28,7 +28,7 @@ module Petra
         end
       end
 
-      alias_method :instantly_fail_on_read_integrity_errors, :instant_read_integrity_fail
+      alias instantly_fail_on_read_integrity_errors instant_read_integrity_fail
 
       #
       # Sets the adapter to be used as transaction persistence adapter.
@@ -101,7 +101,7 @@ module Petra
         ClassConfigurator.for_class(class_name)
       end
 
-      alias_method :[], :class_configurator
+      alias [] class_configurator
 
       #
       # @return [Hash] the complete configuration or one of its sub-namespaces.

@@ -15,9 +15,9 @@ module Petra
       attr_reader :committed
       attr_reader :reset
 
-      alias_method :persisted?, :persisted
-      alias_method :committed?, :committed
-      alias_method :reset?, :reset
+      alias persisted? persisted
+      alias committed? committed
+      alias reset? reset
 
       delegate :log_attribute_change,
                :log_object_persistence,
@@ -86,8 +86,8 @@ module Petra
             .read_value_for(proxy, attribute: attribute)
       end
 
-      alias_method :attribute_changed?, :attribute_value?
-      alias_method :attribute_read?, :read_attribute_value?
+      alias attribute_changed? attribute_value?
+      alias attribute_read? read_attribute_value?
 
       #
       # @return [Petra::Components::EntrySet] the combined log entries of all sections from old to new

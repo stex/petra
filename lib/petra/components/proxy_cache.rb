@@ -30,7 +30,7 @@ module Petra
       # Shortcut to retrieve already cached objects.
       # As #[] may not receive a block, it will automatically fail if the
       # cache entry couldn't be found.
-      alias_method :[], :fetch
+      alias [] fetch
 
       delegate :sections, :current_section, :verify_attribute_integrity!, to: :@transaction
 

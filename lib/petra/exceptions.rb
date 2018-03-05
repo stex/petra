@@ -61,8 +61,8 @@ module Petra
       Petra.transaction_manager.rollback_transaction
     end
 
-    alias_method :rollback!, :rollback_transaction!
-    alias_method :reset!, :reset_transaction!
+    alias rollback! rollback_transaction!
+    alias reset! reset_transaction!
 
     def continue!
       fail Petra::ContinuationError, 'The transaction processing cannot be resumed.' unless continuable?
@@ -130,9 +130,9 @@ module Petra
                                                                           external_value: external_value)
     end
 
-    alias_method :their_value, :external_value
-    alias_method :use_ours!, :ignore!
-    alias_method :use_theirs!, :undo_changes!
+    alias their_value external_value
+    alias use_ours! ignore!
+    alias use_theirs! undo_changes!
   end
 
   #----------------------------------------------------------------
