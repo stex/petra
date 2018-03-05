@@ -530,8 +530,8 @@ module Petra
       def next_savepoint_name
         version = if transaction.sections.empty?
                     1
-        else
-          transaction.sections.last.savepoint_version + 1
+                  else
+                    transaction.sections.last.savepoint_version + 1
                   end
 
         [transaction.identifier, version.to_s].join('/')
