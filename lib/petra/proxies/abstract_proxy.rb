@@ -16,7 +16,7 @@ module Petra
       # @return [Hash] The available proxy classes in the format ("ClassName" => "ProxyClassName")
       #
       def self.available_class_proxies
-        @class_proxies ||= (Petra::Proxies.constants).each_with_object({}) do |c, h|
+        @class_proxies ||= Petra::Proxies.constants.each_with_object({}) do |c, h|
           klass = Petra::Proxies.const_get(c)
           # Skip non-class constants (this includes modules)
           next unless klass.is_a?(Class)
@@ -37,7 +37,7 @@ module Petra
       # Returns only module proxies
       #
       def self.available_module_proxies
-        @module_proxies ||= (Petra::Proxies.constants).each_with_object({}) do |c, h|
+        @module_proxies ||= Petra::Proxies.constants.each_with_object({}) do |c, h|
           klass = Petra::Proxies.const_get(c)
           next unless klass.is_a?(Module)
           next unless klass.included_modules.include?(Petra::Proxies::ModuleProxy)

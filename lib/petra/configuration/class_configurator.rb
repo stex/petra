@@ -183,7 +183,7 @@ module Petra
           case v
             when Proc
               # see #__send_to_base
-              return v.call(*(([*args, base][0, v.arity]))) if proc_expected
+              return v.call(*[*args, base][0, v.arity]) if proc_expected
               v.call(*(args[0, v.arity]))
             when String, Symbol
               return __send_to_base(base, method: v, args: args, key: key) if proc_expected
@@ -256,7 +256,7 @@ module Petra
         # decisions anyway.
         # Therefore, only the correct amount of arguments is passed to the function, e.g.
         # args[0,2] for a method with arity 2
-        base.send(method.to_sym, *(__args_for_arity(base, method, args)))
+        base.send(method.to_sym, *__args_for_arity(base, method, args))
       end
 
       #
