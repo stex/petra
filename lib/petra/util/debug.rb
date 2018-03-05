@@ -9,11 +9,11 @@ module Petra
                        red: 31,
                        purple: 35,
                        cyan: 36,
-                       blue: 34}
+                       blue: 34}.freeze
 
       FORMATS = {default: 0,
                  bold: 1,
-                 underline: 4}
+                 underline: 4}.freeze
 
       %i[debug info warn error].each do |level|
         define_method level do |message, color = :light_gray, format = :default|

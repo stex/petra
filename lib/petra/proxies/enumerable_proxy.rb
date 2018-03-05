@@ -12,7 +12,7 @@ module Petra
     module EnumerableProxy
       include ModuleProxy
       MODULE_NAMES = %w(Enumerable).freeze
-      INCLUDES     = [Enumerable]
+      INCLUDES     = [Enumerable].freeze
 
       module InstanceMethods
         #
