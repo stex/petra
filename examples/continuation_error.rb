@@ -3,12 +3,11 @@
 $: << File.join(File.dirname(__FILE__), '..', 'lib')
 $: << File.join(File.dirname(__FILE__), '..', 'spec', 'support')
 require 'petra'
-require 'pseudo_names'
+require 'faker'
 
 #
 # This example shows why continuations and production code / code
 # that uses external libraries are not a good combination.
-# Somethin
 #
 
 #----------------------------------------------------------------
@@ -20,7 +19,7 @@ class SimpleUser
   attr_accessor :last_name
 
   def initialize
-    @first_name, @last_name = PseudoNames.full_name.split(' ')
+    @first_name, @last_name = Faker::Name.name.split(' ')
   end
 
   def save
@@ -82,7 +81,7 @@ end
 def transaction(id_no, &block)
   Petra.transaction(identifier: eval("$t_id_#{id_no}")) do
     begin
-      block.call
+      yield
     rescue Petra::ValueComparisonError => e
       e.ignore!
       e.continue!
@@ -104,18 +103,18 @@ user    = SimpleUser.petra.new
 
 transaction(1) do
   user.first_name
-  user.last_name = PseudoNames.last_name
+  user.last_name = Faker::Name.last_name
   user.save
 end
 
 transaction(2) do
-  user.first_name, user.last_name = PseudoNames.name.split(' ')
+  user.first_name, user.last_name = Faker::Name.name.split(' ')
   user.save
   Petra.commit!
 end
 
 transaction(1) do
   handler.with_confidential_data('Ulf.') do
-      handler.do_confidential_stuff(user)   #=> Undefined method #read! for nil:NilClass...
+    handler.do_confidential_stuff(user)   #=> Undefined method #read! for nil:NilClass...
   end
 end
