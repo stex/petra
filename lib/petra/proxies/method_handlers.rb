@@ -76,8 +76,9 @@ module Petra
       # wraps the result in another petra proxy
       #
       def handle_missing_method(method_name, *args, &block)
-        proxied_object.public_send(method_name, *args, &block)
-            .petra(inherited: true, configuration_args: [method_name.to_s])
+        proxied_object
+          .public_send(method_name, *args, &block)
+          .petra(inherited: true, configuration_args: [method_name.to_s])
       end
 
       #

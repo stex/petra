@@ -82,8 +82,9 @@ module Petra
       # @return [Object] the last read value for the given attribute
       #
       def read_attribute_value(proxy, attribute:)
-        sections.reverse.find { |s| s.read_value_for?(proxy, attribute: attribute) }
-            .read_value_for(proxy, attribute: attribute)
+        sections
+          .reverse.find { |s| s.read_value_for?(proxy, attribute: attribute) }
+          .read_value_for(proxy, attribute: attribute)
       end
 
       alias attribute_changed? attribute_value?
