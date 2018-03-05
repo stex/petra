@@ -283,9 +283,7 @@ module Petra
                       external_value: external_value)
 
         # If requested, add a new read log entry for the new external value
-        if update_value
-          log_attribute_read(proxy, attribute: attribute, value: external_value, object_persisted: true)
-        end
+        log_attribute_read(proxy, attribute: attribute, value: external_value, object_persisted: true) if update_value
       end
 
       #

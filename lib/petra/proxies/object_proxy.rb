@@ -286,18 +286,16 @@ module Petra
       # in a specialized proxy, so this at least tells the developer that he did something wrong.
       #
       def class_method!
-        unless class_proxy?
-          fail Petra::PetraError, 'This method is meant to be used as a singleton method, not an instance method.'
-        end
+        return if class_proxy?
+        fail Petra::PetraError, 'This method is meant to be used as a singleton method, not an instance method.'
       end
 
       #
       # @see #class_method!
       #
       def instance_method!
-        if class_proxy?
-          fail Petra::PetraError, 'This method is meant to be used as an instance method only!'
-        end
+        return if class_proxy?
+        fail Petra::PetraError, 'This method is meant to be used as an instance method only!'
       end
 
     end

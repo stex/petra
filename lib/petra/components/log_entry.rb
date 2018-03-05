@@ -323,9 +323,8 @@ module Petra
       # Ensures that the currently set log entry kind is actually one of the valid ones
       #
       def validate_kind!
-        unless Petra::Components::LogEntry.registered_entry_type?(kind)
-          fail ArgumentError, "#{kind} is not a valid log entry kind."
-        end
+        return if Petra::Components::LogEntry.registered_entry_type?(kind)
+        fail ArgumentError, "#{kind} is not a valid log entry kind."
       end
     end
   end
