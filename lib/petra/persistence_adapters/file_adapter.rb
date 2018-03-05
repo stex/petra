@@ -23,6 +23,7 @@ module Petra
       def persist!
         return true if queue.empty?
 
+        # rubocop:disable Style/WhileUntilDo
         # We currently only allow entries for one transaction in the queue
         with_transaction_lock(queue.first.transaction_identifier) do
           while (entry = queue.shift) do
@@ -30,6 +31,7 @@ module Petra
             entry.mark_as_persisted!(identifier)
           end
         end
+        # rubocop:enable Style/WhileUntilDo
       end
 
       def transaction_identifiers
