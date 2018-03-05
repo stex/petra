@@ -133,7 +133,7 @@ module Petra
 
         return yield if lock_held
 
-        File.open(lock_file_name(filename), File::RDWR | File::CREAT, 0644) do |f|
+        File.open(lock_file_name(filename), File::RDWR | File::CREAT, 644) do |f|
           if suspend
             f.flock(File::LOCK_EX)
           else
@@ -182,7 +182,7 @@ module Petra
       #
       # Opens a file within the storage directory and yields its handle
       #
-      def with_storage_file(*parts, mode: 'r', perm: 0644, &block)
+      def with_storage_file(*parts, mode: 'r', perm: 644, &block)
         File.open(storage_file_name(*parts), mode, perm, &block)
       end
 
