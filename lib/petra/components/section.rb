@@ -528,11 +528,11 @@ module Petra
       # Builds the next savepoint name based on the transaction identifier and a version number
       #
       def next_savepoint_name
-        if transaction.sections.empty?
-          version = 1
+        version = if transaction.sections.empty?
+          1
         else
-          version = transaction.sections.last.savepoint_version + 1
-        end
+          transaction.sections.last.savepoint_version + 1
+                  end
 
         [transaction.identifier, version.to_s].join('/')
       end
