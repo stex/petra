@@ -202,7 +202,7 @@ module Petra
       def method_source_proc(method_name)
         method        = proxied_object.method(method_name.to_sym)
         method_source = method.source.lines[1..-2].join
-        Proc.new do
+        proc do
           @proxy_binding.eval method_source
         end
       end
