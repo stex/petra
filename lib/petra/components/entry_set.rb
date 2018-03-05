@@ -75,7 +75,7 @@ module Petra
 
       private
 
-      def wrap(&block)
+      def wrap
         self.class.new(yield)
       end
     end

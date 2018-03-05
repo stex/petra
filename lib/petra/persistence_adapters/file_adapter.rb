@@ -129,7 +129,7 @@ module Petra
       #
       # TODO: sanitize file names
       #
-      def with_file_lock(filename, suspend: true, &block)
+      def with_file_lock(filename, suspend: true)
         Thread.current[:__petra_file_locks] ||= []
         lock_held = Thread.current[:__petra_file_locks].include?(lock_file_name(filename).to_s)
 

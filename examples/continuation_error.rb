@@ -79,7 +79,7 @@ end
 #----------------------------------------------------------------
 
 # rubocop:disable Security/Eval
-def transaction(id_no, &block)
+def transaction(id_no)
   Petra.transaction(identifier: eval("$t_id_#{id_no}", __FILE__, __LINE__)) do
     begin
       yield

@@ -442,7 +442,7 @@ module Petra
       # Executes the block and caches its result if the current section has already
       # been persisted (= won't change any more)
       #
-      def cache_if_persisted(name, &block)
+      def cache_if_persisted(name)
         @cache ||= {}
         return (@cache[name.to_s] ||= yield) if persisted?
         yield

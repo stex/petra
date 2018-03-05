@@ -4,6 +4,7 @@ require 'petra/util/registrable'
 
 module Petra
   module PersistenceAdapters
+    # rubocop:disable Lint/UnusedMethodArgument
 
     #
     # This class acts as an interface and specifies the methods that
@@ -53,24 +54,24 @@ module Petra
       #
       # @abstract
       #
-      # @param [Petra::Components::Transaction] transaction
+      # @param [Petra::Components::Transaction] _transaction
       #
       # @return [Array<String>] the names of all savepoints which were previously persisted
       #   for the given transaction
       #
-      def savepoints(transaction)
+      def savepoints(_transaction)
         not_implemented
       end
 
       #
       # @abstract
       #
-      # @param [Petra::Components::Section] section
+      # @param [Petra::Components::Section] _section
       #
       # @return [Array<Petra::Components::LogEntry>] All log entries which were previously
       #   persisted for the given section
       #
-      def log_entries(section)
+      def log_entries(_section)
         not_implemented
       end
 
@@ -95,7 +96,7 @@ module Petra
       #
       # @raise [Petra::LockError] see +suspend+
       #
-      def with_global_lock(suspend: true, &block)
+      def with_global_lock(suspend: true)
         not_implemented
       end
 
@@ -115,7 +116,7 @@ module Petra
       #
       # @raise [Petra::LockError] see +suspend+
       #
-      def with_transaction_lock(_identifier, suspend: true, &block)
+      def with_transaction_lock(_identifier, suspend: true)
         not_implemented
       end
 
@@ -134,7 +135,7 @@ module Petra
       #
       # @raise [Petra::LockError]
       #
-      def with_object_lock(_proxy, suspend: true, &block)
+      def with_object_lock(_proxy, suspend: true)
         not_implemented
       end
 
@@ -148,5 +149,6 @@ module Petra
         @queue = []
       end
     end
+    # rubocop:enable Lint/UnusedMethodArgument
   end
 end
