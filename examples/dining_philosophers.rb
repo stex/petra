@@ -132,7 +132,7 @@ loop do
   philosophers.each_with_index do |phil, idx|
     stick = sticks[idx]
     STDOUT.write stick.taken ? ' _ ' : ' | '
-    STDOUT.write phil.eating? ? " 😁 " : " 😑 "
+    STDOUT.write phil.eating? ? ' 😁 ' : ' 😑 '
   end
 
   STDOUT.write("\r")
