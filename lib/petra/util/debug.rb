@@ -24,7 +24,7 @@ module Petra
       end
 
       def log(message, level: :debug, color: :light_gray, format: :default)
-        logger.send(level, 'Petra :: ' << colored_string(message, color, format))
+        logger.send(level, 'Petra :: ' + colored_string(message, color, format))
       end
 
       private
