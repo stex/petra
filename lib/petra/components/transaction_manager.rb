@@ -173,7 +173,7 @@ module Petra
           #   this very specific behaviour in petra core
           # TODO: There is a mechanism in petra-rails' `petra_transaction` to extract
           #   the original exceptions. May we get rid of this now?
-          when -> (_) { Petra.rails? && e.is_a?(ActionView::Template::Error) }
+          when ->(_) { Petra.rails? && e.is_a?(ActionView::Template::Error) }
             handle_exception(e.original_exception, transaction: transaction)
           else
             # If another exception happened, we forward it to the actual application
