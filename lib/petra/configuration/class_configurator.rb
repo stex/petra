@@ -14,7 +14,7 @@ module Petra
         lookup_method: ->(id) { ObjectSpace._id2ref(id.to_i) },
         init_method: :new,
         attribute_reader?: false,
-        attribute_writer?: ->(name) { /=$/ === name },
+        attribute_writer?: ->(name) { /=$/.match(name) },
         dynamic_attribute_reader?: false,
         persistence_method?: false,
         destruction_method?: false

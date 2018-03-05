@@ -1,10 +1,20 @@
+AllCops:
+  TargetRubyVersion: 2.4
+
 # Max line length
 LineLength:
   Max: 120
 
-# Allow 1.8 hash style
-HashSyntax:
+#--------------------------------------------------
+#                     Layout
+#--------------------------------------------------
+
+Layout/EmptyLinesAroundModuleBody:
   Enabled: false
+
+#--------------------------------------------------
+#                     Style
+#--------------------------------------------------
 
 # Don't require a _ to split an integer like 1000.
 Style/NumericLiterals:
@@ -22,77 +32,53 @@ Style/SpaceInsideHashLiteralBraces:
 Style/CaseIndentation:
   Enabled: false
 
-# Allow bigger classes
-Metrics/ClassLength:
+# Allow empty lines in classes
+Style/EmptyLinesAroundClassBody:
   Enabled: false
 
-# Allow compact module declaration
-Style/ClassAndModuleChildren:
+# Allow fail/raise differentiation
+Style/SignalException:
   Enabled: false
 
-# Allow multiple spaces before first argument
-Style/SingleSpaceBeforeFirstArg:
-  Enabled: false
-
-# Allow extra spacing, e.g. to align components
-Style/ExtraSpacing:
-  Enabled: false
-
-# Sometimes conditional blocks aren't the worst solution...
-Style/GuardClause:
-  Enabled: false
-
-# Allow longer methods
-Metrics/MethodLength:
-  Enabled: false
-
-# This does not work correctly if the format string is not given
-# directly but through a variable or similar
-Lint/FormatParameterMismatch:
-  Enabled: false
-
-# Allow lambda.(...) for jBuilder
-Style/LambdaCall:
-  Enabled: false
-
-# Allow the use of !! (conversion of nil/object to true/false)
 Style/DoubleNegation:
   Enabled: false
 
-# Usually good, but in some cases not possible
-Style/AlignHash:
+Style/ParallelAssignment:
   Enabled: false
 
-# Allow an empty line after do / before end
-Style/EmptyLinesAroundBlockBody:
-  Enabled: false
+#--------------------------------------------------
+#                     Metrics
+#--------------------------------------------------
 
-# Allow unless/if blocks even for one-liners
-Style/IfUnlessModifier:
+# Allow bigger classes
+Metrics/ClassLength:
   Enabled: false
 
 # Allow bigger modules
 Metrics/ModuleLength:
   Enabled: false
 
-# Allow empty lines in classes
-Style/EmptyLinesAroundClassBody:
+Metrics/MethodLength:
   Enabled: false
 
-# Generally a good idea, but "and return" looks nicer than " && return"
-Style/AndOr:
+Metrics/AbcSize:
   Enabled: false
 
-# Again, generally a good idea, but it has problemsn with multiline operations in
-# combinaton with assignments
-Style/MultilineOperationIndentation:
+Metrics/CyclomaticComplexity:
   Enabled: false
 
-# Allow hashes to be indented with more than 2 spaces
-Style/IndentHash:
+Metrics/PerceivedComplexity:
   Enabled: false
+
+Metrics/BlockLength:
+  Enabled: false
+
+#--------------------------------------------------
+#                      Lint
+#--------------------------------------------------
 
 # Allow rescuing from the exception class, so a Transaction may fail if there is something
 # on a lower level than a StandardError is raised. We are re-raising them anyway.
 Lint/RescueException:
   Enabled: false
+

@@ -310,7 +310,7 @@ module Petra
             end
           rescue Petra::ReadIntegrityError
             raise
-              # One (or more) of the attributes from our read set changed externally
+            # One (or more) of the attributes from our read set changed externally
           rescue Petra::LockError
             raise
             # One (or more) of the objects could not be locked.
