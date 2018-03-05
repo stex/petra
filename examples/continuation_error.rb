@@ -78,8 +78,9 @@ end
 #                        Helper Methods
 #----------------------------------------------------------------
 
+# rubocop:disable Security/Eval
 def transaction(id_no, &block)
-  Petra.transaction(identifier: eval("$t_id_#{id_no}")) do
+  Petra.transaction(identifier: eval("$t_id_#{id_no}", __FILE__, __LINE__)) do
     begin
       yield
     rescue Petra::ValueComparisonError => e
@@ -88,6 +89,7 @@ def transaction(id_no, &block)
     end
   end
 end
+# rubocop:enable Security/Eval
 
 #----------------------------------------------------------------
 #                        Actual Example
@@ -115,6 +117,6 @@ end
 
 transaction(1) do
   handler.with_confidential_data('Ulf.') do
-    handler.do_confidential_stuff(user)   #=> Undefined method #read! for nil:NilClass...
+    handler.do_confidential_stuff(user) #=> Undefined method #read! for nil:NilClass...
   end
 end
