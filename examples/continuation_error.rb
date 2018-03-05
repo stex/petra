@@ -2,8 +2,8 @@
 
 # rubocop:disable Style/GlobalVars
 
-$: << File.join(File.dirname(__FILE__), '..', 'lib')
-$: << File.join(File.dirname(__FILE__), '..', 'spec', 'support')
+$LOAD_PATH << File.join(File.dirname(__FILE__), '..', 'lib')
+$LOAD_PATH << File.join(File.dirname(__FILE__), '..', 'spec', 'support')
 require 'petra'
 require 'faker'
 

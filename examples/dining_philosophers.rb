@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-$: << File.join(File.dirname(__FILE__), '..', 'lib')
+$LOAD_PATH << File.join(File.dirname(__FILE__), '..', 'lib')
 require 'petra'
 
 # This file contains a transaction based solution to the dining philosophers problem
