@@ -118,8 +118,8 @@ end
 # interrupting the main thread.
 Thread::abort_on_exception = true
 
-sticks = 5.times.map { |i| Stick.new(i) }
-philosophers = 5.times.map { |i| Philosopher.new(i, sticks[i], sticks[(i + 1) % 5]) }
+sticks = Array.new(5) { |i| Stick.new(i) }
+philosophers = Array.new(5) { |i| Philosopher.new(i, sticks[i], sticks[(i + 1) % 5]) }
 
 philosophers.map do |phil|
   t = Thread.new { phil.live }
