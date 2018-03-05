@@ -16,7 +16,7 @@ module Petra
     class ObjectProxy < AbstractProxy
       include Comparable
 
-      CLASS_NAMES = %w(Object).freeze
+      CLASS_NAMES = %w[Object].freeze
 
       delegate :to_s, to: :proxied_object
 

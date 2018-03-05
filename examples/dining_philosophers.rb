@@ -101,15 +101,15 @@ Petra.configure do
     proxy_instances true
 
     attribute_reader? do |method_name|
-      %w(taken).include?(method_name.to_s)
+      %w[taken].include?(method_name.to_s)
     end
 
     attribute_writer? do |method_name|
-      %w(taken=).include?(method_name.to_s)
+      %w[taken=].include?(method_name.to_s)
     end
 
     persistence_method? do |method_name|
-      %w(save).include?(method_name)
+      %w[save].include?(method_name)
     end
   end
 end

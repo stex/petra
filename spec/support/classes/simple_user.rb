@@ -21,15 +21,15 @@ Petra.configure do
     proxy_instances true
 
     attribute_reader? do |method_name|
-      %w(first_name last_name).include?(method_name.to_s)
+      %w[first_name last_name].include?(method_name.to_s)
     end
 
     attribute_writer? do |method_name|
-      %w(first_name= last_name=).include?(method_name.to_s)
+      %w[first_name= last_name=].include?(method_name.to_s)
     end
 
     persistence_method? do |method_name|
-      %w(save).include?(method_name.to_s)
+      %w[save].include?(method_name.to_s)
     end
   end
 end

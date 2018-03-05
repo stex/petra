@@ -11,7 +11,7 @@ module Petra
     #
     module EnumerableProxy
       include ModuleProxy
-      MODULE_NAMES = %w(Enumerable).freeze
+      MODULE_NAMES = %w[Enumerable].freeze
       INCLUDES     = [Enumerable].freeze
 
       module InstanceMethods
