@@ -118,9 +118,7 @@ module Petra
             # Include the module proxy's instance methods
             include proxy_module.const_get(:InstanceMethods) if proxy_module.const_defined?(:InstanceMethods)
 
-            if proxy_module.const_defined?(:INCLUDES)
-              proxy_module.const_get(:INCLUDES).each { |m| include m }
-            end
+            proxy_module.const_get(:INCLUDES).each { |m| include m } if proxy_module.const_defined?(:INCLUDES)
           end
         end
       end

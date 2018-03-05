@@ -31,9 +31,7 @@ module Petra
         begin
           instance.instance_eval(&block)
         ensure
-          if instance&.transaction_count.zero?
-            Thread.current[:__petra_transaction_manager] = nil
-          end
+          Thread.current[:__petra_transaction_manager] = nil if instance&.transaction_count&.zero?
         end
       end
 
