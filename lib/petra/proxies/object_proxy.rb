@@ -68,6 +68,7 @@ module Petra
       # (for normal objects, every attribute write would be persisted to memory), so
       # we have to execute all matching handlers in a queue.
       #
+      # rubocop:disable Style/MethodMissing
       def method_missing(meth, *args, &block)
         # As calling a superclass method in ruby does not cause method calls within this method
         # to be called within the superclass context, the correct (= the child class') attribute
@@ -87,6 +88,7 @@ module Petra
         exception.set_backtrace(e.backtrace.uniq)
         raise exception
       end
+      # rubocop:enable Style/MethodMissing
 
       #
       # It is necessary to forward #respond_to? queries to
