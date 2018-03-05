@@ -119,7 +119,7 @@ module Petra
 
         # As we currently only handle simple setters, we expect the first given argument
         # to be the new attribute value.
-        new_value      = args.first #type_cast_attribute_value(attribute_name, args.first)
+        new_value      = args.first # type_cast_attribute_value(attribute_name, args.first)
 
         transaction.log_attribute_change(@proxy,
                                          attribute: attribute_name,
