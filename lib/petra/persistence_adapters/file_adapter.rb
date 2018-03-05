@@ -135,11 +135,11 @@ module Petra
 
         return yield if lock_held
 
-        File.open(lock_file_name(filename), File::RDWR|File::CREAT, 0644) do |f|
+        File.open(lock_file_name(filename), File::RDWR | File::CREAT, 0644) do |f|
           if suspend
             f.flock(File::LOCK_EX)
           else
-            unless f.flock(File::LOCK_EX|File::LOCK_NB)
+            unless f.flock(File::LOCK_EX | File::LOCK_NB)
               Petra.logger.debug "#{Thread.current.name}: Could not acquire '#{filename}'", :red
               fail Petra::LockError
             end

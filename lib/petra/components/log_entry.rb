@@ -307,7 +307,7 @@ module Petra
       end
 
       def attribute_key=(key)
-        self[:attribute_key]                                    = key
+        self[:attribute_key] = key
         @object_class, @object_id, @attribute = key.split('/') if key
       end
 
