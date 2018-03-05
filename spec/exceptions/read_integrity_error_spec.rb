@@ -68,13 +68,16 @@ describe Petra::ReadIntegrityError do
   #----------------------------------------------------------------
 
   describe '#ignore!' do
+    let(:log_entries) { Petra.current_transaction.log_entries }
+
     context 'with (update_value: false)' do
       before(:each) do
         @exception.ignore!(update_value: false)
       end
 
+
       it 'adds a new ObjectIntegrityOverride log entry' do
-        expect(Petra.current_transaction.log_entries.last).to be_kind_of Petra::Components::Entries::ReadIntegrityOverride
+        expect(log_entries.last).to be_kind_of Petra::Components::Entries::ReadIntegrityOverride
       end
 
       it 'does not re-raise an exception if we read the attribute again' do
@@ -88,11 +91,11 @@ describe Petra::ReadIntegrityError do
       end
 
       it 'adds a new ObjectIntegrityOverride log entry' do
-        expect(Petra.current_transaction.log_entries[-2]).to be_kind_of Petra::Components::Entries::ReadIntegrityOverride
+        expect(log_entries[-2]).to be_kind_of Petra::Components::Entries::ReadIntegrityOverride
       end
 
       it 'adds a new AttributeRead log entry for the new value' do
-        entry = Petra.current_transaction.log_entries.last
+        entry = log_entries.last
         expect(entry).to be_kind_of Petra::Components::Entries::AttributeRead
         expect(entry.value).to eql @user.unproxied.last_name
       end
