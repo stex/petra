@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'petra/components/transaction'
 
 module Petra

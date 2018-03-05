@@ -1,5 +1,4 @@
-require 'spec_helper'
-
+# frozen_string_literal: true
 #
 # This test does not check whether a ReadIntegrityError is thrown,
 # it just tests its methods and attribute readers

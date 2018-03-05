@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'petra/persistence_adapters/adapter'
 require 'yaml'
 

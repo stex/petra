@@ -1,29 +1,36 @@
-$:.push File.expand_path('../lib', __FILE__)
+# frozen_string_literal: true
 
-# Maintain your gem's version:
+lib = File.expand_path('../lib', __FILE__)
+$LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'petra/version'
 
-# Describe your gem and declare its dependencies:
-Gem::Specification.new do |s|
-  s.name        = "petra"
-  s.version     = Petra::VERSION
-  s.authors     = ['Stefan Exner']
-  s.email       = ['stex@sterex.de']
-  s.homepage    = 'https://www.github.com/stex/petra'
-  s.summary     = 'Temporarily persisted transactions'
-  s.description = 'Temporarily persisted transactions'
-  s.license     = 'MIT'
+Gem::Specification.new do |spec|
+  spec.name          = 'petra'
+  spec.version       = Petra::VERSION
+  spec.authors       = ['Stefan Exner']
+  spec.email         = ['stex@sterex.de']
 
-  s.files = Dir["{app,config,db,lib}/**/*", "MIT-LICENSE", "Rakefile", "README.rdoc"]
-  s.test_files = Dir['test/**/*', 'spec/**/*']
+  spec.summary       = 'Temporarily persisted transactions'
+  spec.homepage      = 'https://github.com/stex/petra'
+  spec.license       = 'MIT'
 
-  s.required_ruby_version = '~> 2.3'
+  spec.files = `git ls-files -z`.split("\x0").reject do |f|
+    f.match(%r{^(test|spec|features)/})
+  end
 
-  s.add_dependency 'activesupport', '~> 4.2'
+  spec.bindir        = 'exe'
+  spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
+  spec.require_paths = ['lib']
 
-  s.add_development_dependency 'sqlite3'
-  s.add_development_dependency 'temping'
-  s.add_development_dependency 'rspec'
-  s.add_development_dependency 'guard-rspec'
-  s.add_development_dependency 'guard-rubocop'
+  spec.required_ruby_version = '~> 2.3'
+
+  spec.add_dependency 'activesupport', '~> 4.2'
+
+  spec.add_development_dependency 'bundler', '~> 1.16'
+  spec.add_development_dependency 'byebug'
+  spec.add_development_dependency 'faker'
+  spec.add_development_dependency 'pry'
+  spec.add_development_dependency 'rake', '~> 10.0'
+  spec.add_development_dependency 'rspec', '~> 3.0'
+  spec.add_development_dependency 'sqlite3'
 end

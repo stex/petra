@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'petra/proxies/abstract_proxy'
 require 'petra/proxies/method_handlers'
 

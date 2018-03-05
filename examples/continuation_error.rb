@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 $: << File.join(File.dirname(__FILE__), '..', 'lib')
 $: << File.join(File.dirname(__FILE__), '..', 'spec', 'support')
 require 'petra'
@@ -6,6 +7,7 @@ require 'pseudo_names'
 #
 # This example shows why continuations and production code / code
 # that uses external libraries are not a good combination.
+# Somethin
 #
 
 #----------------------------------------------------------------

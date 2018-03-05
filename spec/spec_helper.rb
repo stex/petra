@@ -1,14 +1,14 @@
+# frozen_string_literal: true
 $LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
 require 'petra'
 require 'petra/util/test_helpers'
-require 'byebug'
+require 'faker'
 
 Dir[Petra.root.join('../spec/support/**/*.rb')].each { |f| require f }
 
 Petra.configure do
   log_level :warn
   persistence_adapter.storage_directory = Petra.root.join('..', 'spec', 'tmp')
-  true
 end
 
 RSpec.configure do |config|
@@ -37,7 +37,7 @@ RSpec.configure do |config|
 
   # Remove file adapter files
   config.after(:all) do
-    FileUtils.rm_r(Petra.configuration.storage_directory.to_s)
+    FileUtils.rm_r(Petra.configuration.persistence_adapter.storage_directory.to_s)
   end
 
   # Many RSpec users commonly either run the entire suite or an individual

@@ -1,10 +1,11 @@
+# frozen_string_literal: true
 module Classes
   class SimpleUser
     attr_accessor :first_name
     attr_accessor :last_name
 
     def initialize
-      @first_name, @last_name = PseudoNames.full_name.split(' ')
+      @first_name, @last_name = Faker::Name.name.split
     end
 
     def save
