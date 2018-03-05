@@ -22,7 +22,7 @@ module Petra
       #
       def fetch(key)
         @cache ||= {}
-        return @cache[key.to_s] if @cache.has_key?(key.to_s)
+        return @cache[key.to_s] if @cache.key?(key.to_s)
         fail ArgumentError, "Object `#{key}` is not cached and no block was given." unless block_given?
         @cache[key.to_s] = yield
       end

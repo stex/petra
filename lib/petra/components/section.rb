@@ -83,7 +83,7 @@ module Petra
       #   for the given attribute (if a new value was set during this section)
       #
       def value_for?(proxy, attribute:)
-        write_set.has_key?(proxy.__attribute_key(attribute))
+        write_set.key?(proxy.__attribute_key(attribute))
       end
 
       #
@@ -92,7 +92,7 @@ module Petra
       #   for when the read value wasn't used afterwards (no persistence)
       #
       def read_value_for?(proxy, attribute:)
-        read_set.has_key?(proxy.__attribute_key(attribute))
+        read_set.key?(proxy.__attribute_key(attribute))
       end
 
       #
@@ -109,7 +109,7 @@ module Petra
       #   the given attribute name
       #
       def read_integrity_override?(proxy, attribute:)
-        read_integrity_overrides.has_key?(proxy.__attribute_key(attribute))
+        read_integrity_overrides.key?(proxy.__attribute_key(attribute))
       end
 
       #

@@ -39,7 +39,7 @@ module Petra
           end
 
           define_singleton_method("registered_#{name}?") do |key|
-            send("registered_#{name.pluralize}").has_key?(key.to_s)
+            send("registered_#{name.pluralize}").key?(key.to_s)
           end
         end
       end
