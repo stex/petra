@@ -68,7 +68,7 @@ module Petra
       #
       def attribute_value?(proxy, attribute:)
         sections.reverse.any? { |s| s.value_for?(proxy, attribute: attribute) } &&
-            !attribute_change_veto?(proxy, attribute: attribute)
+          !attribute_change_veto?(proxy, attribute: attribute)
       end
 
       #
