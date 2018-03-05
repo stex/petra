@@ -17,9 +17,7 @@ module Petra
           ::Pathname.new(@storage_directory || '/tmp/petra')
         end
 
-        def storage_directory=(new_value)
-          @storage_directory = new_value
-        end
+        attr_writer :storage_directory
       end
 
       def persist!
