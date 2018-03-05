@@ -33,8 +33,7 @@ module Petra
             end
           end
 
-          group   = options.fetch(:group, :general)
-          default = options[:default]
+          group = options.fetch(:group, :general)
 
           send(definer_method, name) do
             accessor = extended_attribute_accessors(group)[name.to_sym] || {}

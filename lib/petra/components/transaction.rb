@@ -308,10 +308,10 @@ module Petra
                 persistence_adapter.reset_transaction(self)
               end
             end
-          rescue Petra::ReadIntegrityError => e
+          rescue Petra::ReadIntegrityError
             raise
               # One (or more) of the attributes from our read set changed externally
-          rescue Petra::LockError => e
+          rescue Petra::LockError
             raise
             # One (or more) of the objects could not be locked.
             #   The object locks are freed by itself, but we have to notify
