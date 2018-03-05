@@ -298,7 +298,6 @@ module Petra
         end
       end
 
-
     end
   end
 end

@@ -126,7 +126,6 @@ philosophers.map do |phil|
   t.name = "Philosopher #{phil.number}"
 end
 
-
 # The output may contain some invalid states as it might happen
 # during a commit phase with only one stick taken.
 loop do
