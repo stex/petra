@@ -133,7 +133,7 @@ module Petra
         Thread.current[:__petra_file_locks] ||= []
         lock_held = Thread.current[:__petra_file_locks].include?(lock_file_name(filename).to_s)
 
-        return block.call if lock_held
+        return yield if lock_held
 
         File.open(lock_file_name(filename), File::RDWR|File::CREAT, 0644) do |f|
           if suspend
@@ -150,7 +150,7 @@ module Petra
           Thread.current[:__petra_file_locks] << lock_file_name(filename).to_s
 
           begin
-            block.call
+            yield
           ensure
             # Should be done automatically when the file handle is closed, but who knows
             f.flock(File::LOCK_UN)

@@ -374,7 +374,7 @@ module Petra
       #
       def with_locked_objects(proxies, suspend: true, &block)
         if proxies.empty?
-          block.call
+          yield
         else
           persistence_adapter.with_object_lock(proxies.first, suspend: suspend) do
             with_locked_objects(proxies[1..-1], suspend: suspend, &block)

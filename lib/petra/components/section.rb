@@ -444,8 +444,8 @@ module Petra
       #
       def cache_if_persisted(name, &block)
         @cache ||= {}
-        return (@cache[name.to_s] ||= block.call) if persisted?
-        block.call
+        return (@cache[name.to_s] ||= yield) if persisted?
+        yield
       end
 
       #
