@@ -107,11 +107,11 @@ module Petra
       # If both entries are in different sections, the one with a smaller
       # savepoint version is considered smaller.
       #
-      def <=>(other_entry)
-        if section == other_entry.section
-          section.log_entries.index(self) <=> section.log_entries.index(other_entry)
+      def <=>(other)
+        if section == other.section
+          section.log_entries.index(self) <=> section.log_entries.index(other)
         else
-          section.savepoint_version <=> other_entry.section.savepoint_version
+          section.savepoint_version <=> other.section.savepoint_version
         end
       end
 

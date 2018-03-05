@@ -166,8 +166,8 @@ module Petra
       #   For existing objects that shouldn't be the case in most situations as
       #   a collection mostly contains only objects of one kind
       #
-      def <=>(other_proxy)
-        __object_key <=> other_proxy.__object_key
+      def <=>(other)
+        __object_key <=> other.__object_key
       end
 
       protected
