@@ -44,7 +44,7 @@ module Petra
 
       def savepoints(transaction)
         with_transaction_lock(transaction.identifier) do
-          return [] unless File.exists? storage_file_name('transactions', transaction.identifier)
+          return [] unless File.exist? storage_file_name('transactions', transaction.identifier)
           storage_file_name('transactions', transaction.identifier).children.select(&:directory?).map do |f|
             ::YAML.load_file(f.join('information.yml').to_s)[:savepoint]
           end
