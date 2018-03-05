@@ -89,7 +89,7 @@ module Petra
       #
       def mixin_module_proxies!
         # Neither symbols nor fixnums may have singleton classes, see the corresponding Kernel method
-        return if proxied_object.is_a?(Fixnum) || proxied_object.is_a?(Symbol)
+        return if proxied_object.is_a?(Integer) || proxied_object.is_a?(Symbol)
 
         # Do not load ModuleProxies if the object's configuration denies it
         return unless object_config(:mixin_module_proxies)
