@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/Stex/petra.svg?branch=master)](https://travis-ci.org/Stex/petra)
+
 # petra
 Temporarily persisted transactions in Ruby (+ ActiveRecord)
 
