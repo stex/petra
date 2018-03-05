@@ -75,7 +75,6 @@ describe Petra::ReadIntegrityError do
         @exception.ignore!(update_value: false)
       end
 
-
       it 'adds a new ObjectIntegrityOverride log entry' do
         expect(log_entries.last).to be_kind_of Petra::Components::Entries::ReadIntegrityOverride
       end
