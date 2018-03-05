@@ -27,5 +27,3 @@ module Petra
     end
   end
 end
-
-

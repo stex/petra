@@ -138,9 +138,3 @@ loop do
   STDOUT.write("\r")
   sleep(0.2)
 end
-
-
-
-
-
-
