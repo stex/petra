@@ -485,19 +485,18 @@ module Petra
       def load_persisted_log_entries
         @log_entries = EntrySet.new(Petra.transaction_manager.persistence_adapter.log_entries(self))
         @log_entries.each do |entry|
-          case
-            when entry.kind?(:attribute_change)
-              write_set[entry.attribute_key] = entry.new_value
-            when entry.kind?(:attribute_read)
-              read_set[entry.attribute_key] = entry.value
-            when entry.kind?(:read_integrity_override)
-              read_integrity_overrides[entry.attribute_key] = entry.external_value
-            when entry.kind?(:attribute_change_veto)
-              attribute_change_vetoes[entry.attribute_key] = entry.external_value
-              # Remove any value changes done to the attribute previously in this section
-              # This will speed up finding active attribute change vetoes as
-              # the search is already canceled if no write set entry exists.
-              write_set.delete(entry.attribute_key)
+          if entry.kind?(:attribute_change)
+            write_set[entry.attribute_key] = entry.new_value
+          elsif entry.kind?(:attribute_read)
+            read_set[entry.attribute_key] = entry.value
+          elsif entry.kind?(:read_integrity_override)
+            read_integrity_overrides[entry.attribute_key] = entry.external_value
+          elsif entry.kind?(:attribute_change_veto)
+            attribute_change_vetoes[entry.attribute_key] = entry.external_value
+            # Remove any value changes done to the attribute previously in this section
+            # This will speed up finding active attribute change vetoes as
+            # the search is already canceled if no write set entry exists.
+            write_set.delete(entry.attribute_key)
           end
         end
 
