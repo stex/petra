@@ -144,8 +144,7 @@ module Petra
 
       private
 
-      def initialize
-      end
+      def initialize; end
 
     end
   end

@@ -91,8 +91,7 @@ class Stick < Mutex
     end
   end
 
-  def save
-  end
+  def save; end
 end
 
 Petra.configure do
