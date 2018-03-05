@@ -15,7 +15,7 @@ module Petra
                  bold: 1,
                  underline: 4}
 
-      [:debug, :info, :warn, :error].each do |level|
+      %i[debug info warn error].each do |level|
         define_method level do |message, color = :light_gray, format = :default|
           log(message, level: level, color: color, format: format)
         end
