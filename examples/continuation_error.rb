@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+# rubocop:disable Style/GlobalVars
+
 $: << File.join(File.dirname(__FILE__), '..', 'lib')
 $: << File.join(File.dirname(__FILE__), '..', 'spec', 'support')
 require 'petra'
@@ -120,3 +122,5 @@ transaction(1) do
     handler.do_confidential_stuff(user) #=> Undefined method #read! for nil:NilClass...
   end
 end
+
+# rubocop:enable Style/GlobalVars
