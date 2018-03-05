@@ -282,7 +282,6 @@ module Petra
           begin
             # Step 1: Lock this transaction so no other thread may alter it any more
             persistence_adapter.with_transaction_lock(identifier) do
-
               # Step 2: Try to get the locks for all objects which took part in this transaction
               #   Acquire the locks on a sorted collection to avoid Deadlocks with other transactions
               # We do not have to lock objects which were created within the transaction

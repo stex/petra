@@ -118,5 +118,4 @@ describe Petra::ReadIntegrityError do
   def transaction(number, &block)
     Petra.transaction(identifier: send("transaction_id_#{number}"), &block)
   end
-
 end
