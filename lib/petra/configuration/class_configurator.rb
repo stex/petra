@@ -35,7 +35,7 @@ module Petra
       #                      Configuration Keys
       #----------------------------------------------------------------
 
-      # TODO LIST:
+      # TODO: LIST:
       #   - Rails' routes like configurators for method handlers:
       #     - Allow attribute writers without parameters. These will need a value the
       #       write set entry is set to. An example here would be `lock!` which sets `locked = true` internally
