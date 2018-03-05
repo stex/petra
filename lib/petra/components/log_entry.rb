@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'petra/util/field_accessors'
 require 'petra/util/registrable'
 

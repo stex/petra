@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 $: << File.join(File.dirname(__FILE__), '..', 'lib')
 $: << File.join(File.dirname(__FILE__), '..', 'spec', 'support')
 require 'petra'

@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'petra/util/registrable'
 
 module Petra

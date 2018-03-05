@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'petra/components/entry_set'
 require 'petra/components/section'
 require 'petra/components/proxy_cache'

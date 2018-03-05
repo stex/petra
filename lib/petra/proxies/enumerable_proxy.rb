@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'petra/proxies/module_proxy'
 
 module Petra
