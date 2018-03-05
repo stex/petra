@@ -116,7 +116,7 @@ end
 
 # If not set, a thread would silently fail without
 # interrupting the main thread.
-Thread::abort_on_exception = true
+Thread.abort_on_exception = true
 
 sticks = Array.new(5) { |i| Stick.new(i) }
 philosophers = Array.new(5) { |i| Philosopher.new(i, sticks[i], sticks[(i + 1) % 5]) }
