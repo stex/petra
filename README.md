@@ -329,7 +329,160 @@ rescue Petra::WriteClashError => e
 end
 ```
 
+### `continue!`?
+
+As mentioned above, `petra` allows the developer to jump back into the transaction after an error was resolved.  
+This is done by using Ruby's [Continuation](https://ruby-doc.org/core-2.5.0/Continuation.html) which basically saves a copy of the stack at the time the exception happened. This copy can then be restored if the developer decides to continue the execution.
+
+I'd personally keep everything regarding continuations far away from production code, but they are a very interesting concept (which will most likely be removed with Ruby 3.0 :/ ). `examples/continuation_error.rb` shows one of the drawbacks which could lead to a long time of debugging.
+
 ## Full Configuration Options
+
+### Global Options
+
+#### `persistence_adapter`
+
+```ruby
+Petra.configure do
+  persistence_adapter :file
+  persistence_adapter.storage_directory = '/tmp/petra'
+end
+```
+
+Specifies the persistence adapter and its possible options.  
+Petra only includes a file system based adapter by default.
+
+#### `instantly_fail_on_read_integrity_errors`
+
+```ruby
+Petra.configure do
+	instantly_fail_on_read_integrity_errors false
+end	
+```
+
+`petra` can be set to optimistic transaction handling. This means, that a transaction is only checked
+for possible external changes during the commit phase.
+
+By default, a corresponding error is thrown directly when the attribute is accessed again within the transaction.
+
+#### `log_level`
+
+```ruby
+Petra.configure do
+  log_level :debug | :info | :warn | :error
+end
+```
+
+Specifies the log level `petry` should use. 
+
+* `:debug`
+	* Information about all methods called on an object proxy and their results
+	* Attribute reads and changes
+	* Acquired and released locks
+	* The creation of transaction log entries
+* `:info`
+	* Starting and persisting a transaction
+	* Committing a transaction
+	* Triggering a rollback on a transaction
+* `:warn`
+	* Forced transaction resets
+
+### Class Specific Options
+
+Apart from the already mentioned ones, the following class specific options are available:
+
+#### `proxy_instances`
+
+Determines whether `petra` should automatically create proxies for instances of the configured class when they are accessed from within an existing object proxy.
+
+```ruby
+Petra.configure do
+  configure_class SimpleUser do
+    proxy_instances true
+  end
+  
+  # Do not create a proxy for strings. Otherwise, calling `SimpleUser#first_name` would result in a string object proxy
+  configure_class String do
+    proxy_instances false
+  end
+end
+```
+
+#### `use_specialized_proxy`
+
+`petra` contains a very basic `ObjectProxy` implementation which works fine with most ruby objects, but has to be configured.  
+For more advanced classes, it is advised to create a specialized proxy (see `petra-rails`).
+
+By default, `petra` will use the specialized version if available, but can be forced to use the basic object proxy instead:
+
+```ruby
+Petra.configure do
+  configure_class ActiveRecord::Base do
+    use_specialized_proxy false
+  end
+end
+```
+
+#### `mixin_module_proxies`
+
+`petra` does not only support proxies for certain classes, but also for mixins. This allows a developer to define a proxy which is automatically used for every class which contains a certain module.
+
+By default, `petra` contains an `Enumerable` proxy which automatically wraps its entries in object proxies.
+
+The automatic inclusion of these module proxies can be disabled:
+
+```ruby
+Petra.configure do
+  configure_class Array do
+    mixin_module_proxies false
+  end
+end
+```
+
+#### `id_method`
+
+Specifies the method to retrieve an identifier for instances of the configured class.
+
+By default, `object_id` is used, which of course is very limited. 
+
+```ruby
+Petra.configure do
+  configure_class ActiveRecord::Base do
+    id_method :id
+    # or
+    id_method do |obj|
+      obj.id
+    end
+  end
+end
+```
+
+#### `lookup_method`
+
+Basically the counterpart of `id_method`. Specifies the class method which can be used to retrieve an instance of the configured class when providing the corresponding identifier.
+
+It defaults to `ObjectSpace._id2ref` which returns an object by its `object_id`.
+
+```ruby
+Petra.configure do
+  configure_class ActiveRecord::Base do
+    lookup_method :find
+  end
+end
+```
+
+#### `init_method`
+
+Specifies the method to initialize a new instance of the configured class (or one of its descendants).  
+It is used to automatically re-initialize objects used (and persisted) in a previous section and works the same way as lookup_method.
+
+```ruby
+Petra.configure do
+  configure_class Array do
+    init_method :new
+  end
+end
+```
 
 ## Custom Proxy Classes
 
