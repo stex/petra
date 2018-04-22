@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 describe 'Read Integrity Error Handling' do
-  let!(:user) { Classes::SimpleUser.petra.new.tap { |u| u.first_name = 'Karl' } }
+  let!(:user) { Classes::SimpleUser.petra.new('Karl') }
 
   before(:each) do
     Petra.transaction(identifier: 'tr1') do
@@ -26,6 +26,19 @@ describe 'Read Integrity Error Handling' do
   end
 
   context 'when reacting to a ReadIntegrityError' do
+    context 'by simply not doing anything' do
+      it 'raises the error again the next time' do
+        Petra.transaction(identifier: 'tr1') do
+          begin
+            user.first_name # raises an exception
+            expect { user.first_name }.to raise_error Petra::ReadIntegrityError
+          rescue Petra::ReadIntegrityError => e
+            e.continue!
+          end
+        end
+      end
+    end
+
     context 'by ignoring the change' do
       it 'does not raise an exception for the the same external value again' do
         Petra.transaction(identifier: 'tr1') do

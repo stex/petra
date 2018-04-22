@@ -116,7 +116,9 @@ module Petra
             yield
           rescue Petra::Retry
             Petra.logger.debug "Re-trying transaction #{identifier}", :blue
-            transaction.rollback!
+            # We have to persist certain log entries before triggering a rollback
+            # as we'd lose read / write overrides otherwise
+            transaction.prepare_for_retry!
             @stack.pop
             retry
           rescue Exception => error

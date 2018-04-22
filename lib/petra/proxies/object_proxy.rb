@@ -29,9 +29,9 @@ module Petra
       end
 
       # Creepy!
-      def new(*)
+      def new(*args)
         class_method!
-        proxied_object.new.petra
+        proxied_object.new(*args).petra
       end
 
       #

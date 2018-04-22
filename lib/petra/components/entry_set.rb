@@ -61,6 +61,10 @@ module Petra
         each(&:enqueue_for_persisting!)
       end
 
+      def prepare_for_retry!
+        select(&:persist_on_retry?).each(&:enqueue_for_persisting!)
+      end
+
       #----------------------------------------------------------------
       #                      Wrapped Array Methods
       #----------------------------------------------------------------

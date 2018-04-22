@@ -283,7 +283,7 @@ module Petra
                       external_value: external_value)
 
         # If requested, add a new read log entry for the new external value
-        log_attribute_read(proxy, attribute: attribute, value: external_value, object_persisted: true) if update_value
+        log_attribute_read(proxy, attribute: attribute, value: external_value, persist_on_retry: true) if update_value
       end
 
       #
@@ -297,7 +297,7 @@ module Petra
                       external_value: external_value)
 
         # Also log the current external attribute value, so the transaction uses the newest available one
-        log_attribute_read(proxy, attribute: attribute, value: external_value, object_persisted: true)
+        log_attribute_read(proxy, attribute: attribute, value: external_value, persist_on_retry: true)
       end
 
       #----------------------------------------------------------------
@@ -417,6 +417,10 @@ module Petra
         @log_entries = []
         @read_set    = []
         @write_set   = []
+      end
+
+      def prepare_for_retry!
+        log_entries.prepare_for_retry!
       end
 
       #

@@ -5,8 +5,9 @@ module Classes
     attr_accessor :first_name
     attr_accessor :last_name
 
-    def initialize
-      @first_name, @last_name = Faker::Name.name.split
+    def initialize(first_name = nil, last_name = nil)
+      @first_name = first_name || Faker::Name.first_name
+      @last_name = last_name || Faker::Name.last_name
     end
 
     def name

@@ -43,6 +43,9 @@ module Petra
       # Means that the client persisted the object referenced by this log entry, e.g. through #save in case of AR
       attr_accessor :object_persisted
 
+      # Marks this log entry to be persisted on section retries even if the object was not persisted
+      attr_writer :persist_on_retry
+
       # Means that the log entry was actually persisted within the transaction
       attr_accessor :transaction_persisted
 
@@ -214,8 +217,16 @@ module Petra
       #
       def enqueue_for_persisting!
         return if transaction_persisted?
-        return unless persist?
+        return unless persist? || persist_on_retry? && transaction.retry_in_progress?
         Petra.transaction_manager.persistence_adapter.enqueue(self)
+      end
+
+      #
+      # @return [boolean] If this returns +true+, the log entry will be
+      #   persisted when a section is retried even if #persist? would return +false+
+      #
+      def persist_on_retry?
+        !!@persist_on_retry
       end
 
       #

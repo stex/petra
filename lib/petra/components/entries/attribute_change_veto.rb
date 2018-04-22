@@ -24,6 +24,10 @@ module Petra
           true
         end
 
+        def persist_on_retry?
+          true
+        end
+
         def apply!; end
 
         Petra::Components::LogEntry.register_entry_type(kind, self)

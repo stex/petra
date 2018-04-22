@@ -14,10 +14,12 @@ module Petra
       attr_reader :persisted
       attr_reader :committed
       attr_reader :reset
+      attr_reader :retry_in_progress
 
       alias persisted? persisted
       alias committed? committed
       alias reset? reset
+      alias retry_in_progress? retry_in_progress
 
       delegate :log_attribute_change,
                :log_object_persistence,
@@ -26,10 +28,11 @@ module Petra
                :log_object_destruction, to: :current_section
 
       def initialize(identifier:)
-        @identifier = identifier
-        @persisted  = false
-        @committed  = false
-        @reset      = false
+        @identifier        = identifier
+        @persisted         = false
+        @committed         = false
+        @reset             = false
+        @retry_in_progress = false
       end
 
       def after_initialize
@@ -318,6 +321,18 @@ module Petra
             #   the outer application about this commit error
           end
         end
+      end
+
+      #
+      # Make sure that overrides (ReadIntegrityOverride / AttributeChangeVeto) are persisted
+      # before retrying a section. If we don't persist those, the same error will simply happen again
+      # in the next iteration.
+      #
+      def prepare_for_retry!
+        @retry_in_progress = true
+        current_section.prepare_for_retry!
+        persistence_adapter.persist!
+        @retry_in_progress = false
       end
 
       #

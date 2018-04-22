@@ -3,7 +3,7 @@
 # petra
 <img src="https://drive.google.com/uc?id=1BKauBWbE66keL1gBBDfgSaRE0lL5x586&export=download" width="200" align="right" />
 
-Petra is a proof-of-concept for **pe**rsisted **tra**nsactions in Ruby with (hopefully) full `ACID` properties.
+Petra is a proof-of-concept for **pe**rsisted **tra**nsactions in Ruby with (hopefully) full `ACI(D)` properties.
 
 Please note that this was created during my master's thesis in 2016 and hasn't been extended a lot since then except for a few coding style fixes. I would write a lot of stuff differently today, but the main concept is still interesting enough.
 
@@ -11,7 +11,7 @@ It allows starting a transaction without committing it and resuming it at a late
 
 It should work with every Ruby object and can be extended to work with web frameworks like Ruby-on-Rails as well (a POC of RoR integration can be found at [stex/petra-rails](https://github.com/stex/petra-rails)). 
 
-Let's take a look at how petra is used:
+Let's take a look at how `petra` is used:
 
 ```ruby
 class SimpleUser
@@ -55,6 +55,23 @@ puts user.name #=> 'Foo Bar'
 ```
 
 We just used a simple Ruby object inside a transaction which was even split into multiple sections! 
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+## TOC
+
+- [Basic Usage](#basic-usage)
+  - [Starting/Resuming a transaction](#startingresuming-a-transaction)
+  - [Transactional Objects and their Configuration](#transactional-objects-and-their-configuration)
+  - [Commit / Rollback / Reset / Retry](#commit--rollback--reset--retry)
+- [Reacting to external changes](#reacting-to-external-changes)
+  - [An attribute we previously read was changed externally](#an-attribute-we-previously-read-was-changed-externally)
+  - [An attribute we changed in our transaction was also changed externally](#an-attribute-we-changed-in-our-transaction-was-also-changed-externally)
+- [Full Configuration Options](#full-configuration-options)
+- [Custom Proxy Classes](#custom-proxy-classes)
+- [How it works](#how-it-works)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Basic Usage
 
@@ -196,9 +213,15 @@ Here, all changes to `user` are lost.
 #### Retry
 
 A retry means that the current transaction block should be retried again after a rollback.  
-This is useful e.g. in case a certain lock could not be acquired (see below)
 
-## Reacting to changes outside the transaction
+```ruby
+Petra.transaction(identifier: 'tr1') do
+  user.last_name = 'Bar'
+  fail Petra::Retry if some_condition
+end
+```
+
+## Reacting to external changes
 
 As the transaction is working in isolation on its own data set, it might happen that the original objects outside the transaction are changed in the meantime, e.g. by another transaction's commit:
 
@@ -220,13 +243,32 @@ end
 
 `petra` reacts to these external changes and raises a corresponding exception. This exception allows the developer to solve the conflicts based on his current context.
 
-The exception is thrown either when the attribute is used again or during the commit phase.
+The exception is thrown either when the attribute is used again or during the commit phase. Not handling any of these exception yourself will result in a transaction reset.
 
-Not handling any of these exception yourself will result in a transaction reset.
+Each error described below shares a few common methods to control the further transaction flow:
 
-### `ReadIntegrityError`
+```ruby
+Petra.transaction(identifier: 'tr1') do
+  begin
+    ...
+  rescue Petra::ValueComparisionError => e # Superclass of ReadIntegrityError and WriteClashError
+    e.object          #=> the object which was changed externally
+    e.attribute       #=> the name of the changed attribute
+    e.external_value  #=> the new external value
+  
+    e.retry!    # Runs the current transaction block again
+    e.rollback! # Dismisses all changes in the current section, continues after transaction block
+    e.reset!    # Resets the whole transaction, continues after transaction block
+    e.continue! # Continues with executing the current transaction block
+  end
+end
+```
 
-A `ReadIntegrityError` is thrown if one transaction read an attribute value which is then changed:
+Please note that in most cases calling `rollback!`, `retry!` or `continue!` without any other exception specific method will result in the same error again the next time.
+
+### An attribute we previously read was changed externally
+
+A `ReadIntegrityError` is thrown if one transaction read an attribute value which is then changed externally:
 
 ```ruby
 Petra.transaction(identifier: 'tr1') do
@@ -241,9 +283,54 @@ Petra.transaction(identifier: 'tr1') do
 end
 ```
 
+When triggering a `ReadIntegrityError`, you can choose to acknowledge/ignore the external change. Doing so will suppress further errors as long as the external value does not change again.
 
+```ruby
+begin
+...
+rescue Petra::ReadIntegrityError => e
+  e.last_read_value #=> the value we got when last reading the attribute
+
+  e.ignore!(update_value: true)  # we acknowledge the external change and use the new value in our transaction from now on
+  e.ignore!(update_value: false) # we keep our old value and simply ignore the external change.
+  e.retry!
+end
+```
+
+### An attribute we changed in our transaction was also changed externally
+
+A `WriteClashError` is thrown whenever an attribute we changed inside one of our transaction sections was also changed externally:
+
+```ruby
+Petra.transaction(identifier: 'tr1') do
+  user.first_name = 'Foo'
+end
+
+user.first_name = 'Moo'
+
+Petra.transaction(identifier: 'tr1') do
+  user.first_name
+  #=> Petra:WriteClashError: The attribute `first_name` has been changed externally and in the transaction.
+end
+```
+
+As both sides changed the attribute value, we have to decided which one to use further in most cases (or completely reset the transaction):
+
+```ruby
+begin
+...
+rescue Petra::WriteClashError => e
+  e.our_value   #=> the value we set the attribute to
+  e.their_value #=> the new external value
+
+  e.use_theirs! # undo every change we made to the attribute in this transaction
+  e.use_ours!   # Ignore the external change, use our value
+  e.retry!
+end
+```
 
 ## Full Configuration Options
 
+## Custom Proxy Classes
 
 ## How it works

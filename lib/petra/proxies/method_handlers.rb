@@ -140,7 +140,7 @@ module Petra
         # We wrote this attribute before, so we have to serve its value
         # from the transaction's write set
         if transaction.attribute_value?(@proxy, attribute: method_name)
-          # As we read this attribute before, we have the value we read back then on record.
+          # As we wrote this attribute before, we have the value we read back then on record.
           # Therefore, we may check if the value changed in the mean time which would invalidate
           # the transaction (most likely).
           transaction.verify_attribute_integrity!(@proxy, attribute: method_name)
