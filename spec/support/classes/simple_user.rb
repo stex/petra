@@ -9,6 +9,10 @@ module Classes
       @first_name, @last_name = Faker::Name.name.split
     end
 
+    def name
+      "#{first_name} #{last_name}"
+    end
+
     def save
       # Do nothing, we just want an explicit save method.
       # We could also set every attribute write to also be a persistence method
@@ -26,6 +30,10 @@ Petra.configure do
 
     attribute_writer? do |method_name|
       %w[first_name= last_name=].include?(method_name.to_s)
+    end
+
+    dynamic_attribute_reader? do |method_name|
+      %w[name].include?(method_name.to_s)
     end
 
     persistence_method? do |method_name|

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'active_support/all'
+require 'method_source'
 require 'pathname'
 
 require 'petra/core_ext'

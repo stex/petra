@@ -37,7 +37,7 @@ RSpec.configure do |config|
   end
 
   # Remove file adapter files
-  config.after(:all) do
+  config.after(:each) do
     FileUtils.rm_r(Petra.configuration.persistence_adapter.storage_directory.to_s)
   end
 
