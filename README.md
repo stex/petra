@@ -11,6 +11,8 @@ It allows starting a transaction without committing it and resuming it at a late
 
 It should work with every Ruby object and can be extended to work with web frameworks like Ruby-on-Rails as well (a POC of RoR integration can be found at [stex/petra-rails](https://github.com/stex/petra-rails)). 
 
+This README only covers parts of what `petra` has to offer. Feel free to dive into the code, everything should be commented accordingly.
+
 Let's take a look at how `petra` is used:
 
 ```ruby
@@ -268,7 +270,7 @@ Please note that in most cases calling `rollback!`, `retry!` or `continue!` with
 
 ### An attribute we previously read was changed externally
 
-A `ReadIntegrityError` is thrown if one transaction read an attribute value which is then changed externally:
+A `ReadIntegrityError` is thrown if one transaction reads an attribute value which is then changed externally:
 
 ```ruby
 Petra.transaction(identifier: 'tr1') do
@@ -336,6 +338,17 @@ This is done by using Ruby's [Continuation](https://ruby-doc.org/core-2.5.0/Cont
 
 I'd personally keep everything regarding continuations far away from production code, but they are a very interesting concept (which will most likely be removed with Ruby 3.0 :/ ). `examples/continuation_error.rb` shows one of the drawbacks which could lead to a long time of debugging.
 
+```ruby
+begin
+  simple_user.first_name = 'Foo'
+  simple_user.save
+rescue Petra::WriteClashError => e
+  e.use_ours!
+  # Jumps back to `simple_user.save` without a retry
+  e.continue!
+end
+```
+
 ## Full Configuration Options
 
 ### Global Options
@@ -356,7 +369,7 @@ Petra only includes a file system based adapter by default.
 
 ```ruby
 Petra.configure do
-	instantly_fail_on_read_integrity_errors false
+  instantly_fail_on_read_integrity_errors false
 end	
 ```
 
@@ -484,6 +497,135 @@ Petra.configure do
 end
 ```
 
-## Custom Proxy Classes
+## Extending `petra`
 
-## How it works
+`petra` can be easily extended to a certain extent as seen in [stex/petra-rails](https://github.com/stex/petra-rails).
+
+### Class Proxies
+
+As mentioned above, some classes are too complicated to be configured using the basic `ObjectProxy`.
+
+Let's define a basic example for such a class:
+
+```ruby
+class SimpleRecord
+  def self.create(attributes = {})
+    new(attributes).save
+  end
+  
+  def save
+    # some persistence logic
+  end
+end
+```
+
+In this example, `#create` is a method we cannot configure easily as it doesn't match any of the available method types in `ObjectProxy`. Instead. it is a combination of attribute writers and persistence methods.
+
+To be taken into account as a custom object proxy, a class has to comply to the following rules:
+
+1. It has to be defined inside `Petra::Proxies`
+2. It has to inherit from `Petra::Proxies::ObjectProxy`
+3. It has to define the class names it may be applied to in a constant named `CLASS_NAMES`
+
+Let's define the corresponding proxy for `SimpleRecord`:
+
+```ruby
+module Petra
+  module Proxies
+    class SimpleRecordProxy < ObjectProxy
+      CLASS_NAMES = %w[SimpleRecord].freeze
+
+      def create(attributes = {})
+        # This method may only be called on class, not on instance level
+        class_method!
+
+        # Use ObjectProxy's basic `new` method without any arguments
+        new.tap do |obj|
+          # Tell our transaction that we initialized a new object.
+          # This wasn't done in the previous examples as we were working on the
+          # `ObjectSpace` with objects defined outside the transaction.
+          transaction.log_object_initialization(o, method: 'new')
+
+          # Apply the attribute writes inside the transaction
+          attributes.each do |k, v|
+            __set_attribute(k, v)
+          end
+
+          # #create automatically persists a record, we therefore have to
+          # tell our transaction to log this action.
+          transaction.log_object_persistence(o, method: 'save')
+        end
+      end
+
+      def save
+        transaction.log_object_persistence(self, method: 'save')
+      end
+    end
+  end
+end
+```
+
+See [petra-rails's ActiveRecordProxy](https://github.com/Stex/petra-rails/blob/master/lib/petra/proxies/active_record_proxy.rb) for a full example.
+
+### Module Proxies
+
+As mentioned above, module proxies can be used to define proxy functionality for all classes which include a certain module.  
+Internally, these modules are included into the singleton class of our object proxies, meaning that one instance of a proxy could include a certain module, the other doesn't.
+
+A module proxy has to comply to the following rules:
+
+1. It has to be defined in `Petra::Proxies`
+2. It has to include `Petra::Proxies::ModuleProxy`
+3. It has to define a constant named `MODULE_NAMES` which contains the modules it is applicable for.
+
+Let's take a look at `petra`'s `EnumerableProxy`:
+
+```ruby
+module Petra
+  module Proxies
+    module EnumerableProxy
+      include ModuleProxy
+      MODULE_NAMES = %w[Enumerable].freeze
+
+      # Specifying an `INCLUDES` constant leads to instances of the resulting proxy
+      # automatically including the given modules - in this case, every proxy which handles
+      # an Enumerable will automatically be an Enumerable as well
+      INCLUDES = [Enumerable].freeze
+
+      # ModuleProxies may specify an `InstanceMethods` and a `ClassMethods` sub-module.
+      # Their methods will be included/extended accordingly.
+      module InstanceMethods
+        #
+        # We have to define our own #each method for the singleton class' Enumerable
+        # It basically just wraps the original enum's entries in proxies and executes
+        # the "normal" #each
+        #
+        def each(&block)
+          Petra::Proxies::EnumerableProxy.proxy_entries(proxied_object).each(&block)
+        end
+      end
+
+      #
+      # Ensures the the objects yielded to blocks are actually petra proxies.
+      # This is necessary as the internal call to +each+ would be forwarded to the
+      # actual Enumerable object and result in unproxied objects.
+      #
+      # This method will only proxy objects which allow this through the class config
+      # as the enum's entries are seen as inherited objects.
+      # `[]` is used as method causing the proxy creation as it's closest to what's actually happening.
+      #
+      # @return [Array<Petra::Proxies::ObjectProxy>]
+      #
+      def self.proxy_entries(enum, surrogate_method: '[]')
+        enum.entries.map { |o| o.petra(inherited: true, configuration_args: [surrogate_method]) }
+      end
+    end
+  end
+end
+```
+
+Please take a look at [`lib/petra/proxies/abstract_proxy.rb`](https://github.com/Stex/petra/blob/master/lib/petra/proxies/abstract_proxy.rb) for more information regarding how proxies are chosen and built.
+
+### Persistence Adapters
+
+### Log Entry Types

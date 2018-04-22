@@ -18,7 +18,7 @@ module Petra
         #
         # We have to define our own #each method for the singleton class' Enumerable
         # It basically just wraps the original enum's entries in proxies and executes
-        # the "normal" #enum
+        # the "normal" #each
         #
         def each(&block)
           Petra::Proxies::EnumerableProxy.proxy_entries(proxied_object).each(&block)
