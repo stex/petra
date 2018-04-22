@@ -43,6 +43,16 @@ module Petra
         Thread.current[:__petra_transaction_manager] || fail(Petra::PetraError, 'There are no running transactions')
       end
 
+      #
+      # @return [Boolean] +true+ if at least one transaction is currently running.
+      #
+      # Please note that a transaction is only considered running if the process is currently
+      # in its execution block, even if it has uncommitted changes.
+      #
+      def self.instance?
+        !!Thread.current[:__petra_transaction_manager]
+      end
+
       def initialize
         @stack = []
       end

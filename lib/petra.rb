@@ -57,6 +57,13 @@ module Petra
   end
 
   #
+  # @return [Boolean] +true+ if a transaction is currently running
+  #
+  def self.transaction_running?
+    Petra::Components::TransactionManager.instance?
+  end
+
+  #
   # Attempts to commit the currently active transaction
   #
   def self.commit!

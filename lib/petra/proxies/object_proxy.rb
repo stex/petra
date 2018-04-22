@@ -70,6 +70,13 @@ module Petra
       #
       # rubocop:disable Style/MethodMissing
       def method_missing(meth, *args, &block)
+        # If no transaction is currently running, we proxy everything
+        # to the original object.
+        unless Petra.transaction_running?
+          Petra.logger.info "No transaction running, proxying #{meth} to original object."
+          return unproxied.public_send(meth, *args, &block)
+        end
+
         # As calling a superclass method in ruby does not cause method calls within this method
         # to be called within the superclass context, the correct (= the child class') attribute
         # detectors are run.
