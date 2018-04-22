@@ -47,7 +47,7 @@ describe 'Read Integrity Error Handling' do
             expect { user.first_name }.not_to raise_error Petra::ReadIntegrityError
           rescue Petra::ReadIntegrityError => e
             e.ignore!
-            e.continue!
+            e.retry!
           end
         end
       end
@@ -60,7 +60,7 @@ describe 'Read Integrity Error Handling' do
               expect(user.first_name).to eql 'Gustav'
             rescue Petra::ReadIntegrityError => e
               e.ignore!(update_value: true)
-              e.continue!
+              e.retry!
             end
           end
         end
