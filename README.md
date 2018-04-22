@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/Stex/petra.svg?branch=master)](https://travis-ci.org/Stex/petra)
 
 # petra
-<img src="https://drive.google.com/uc?id=1BKauBWbE66keL1gBBDfgSaRE0lL5x586&export=download" width="250" align="left" />
+<img src="https://drive.google.com/uc?id=1BKauBWbE66keL1gBBDfgSaRE0lL5x586&export=download" width="200" align="left" />
 
 Petra is a proof-of-concept for **pe**rsisted **tra**nsactions in Ruby.
 
@@ -28,29 +28,34 @@ class SimpleUser
   # ... configuration, see below
 end
 
-user = SimpleUser.new
+user = SimpleUser.petra.new
 user.first_name, user.last_name = 'John', 'Doe'
 
+# Start a new transaction and start changing attributes
 Petra.transaction(identifier: 'tr1') do
-  user.petra.first_name = 'Foo'
+  user.first_name = 'Foo'
   user.save
 end
 
+# No changes outside the transaction yet...
 puts user.name #=> 'John Doe'
 
+# Continue the same transaction
 Petra.transaction(identifier: 'tr1') do
   puts user.name #=> 'Foo Doe'
-  user.petra.last_name = 'Bar'
+  user.last_name = 'Bar'
   user.save
 end
 
 puts user.name #=> 'John Doe'
 
+# Commit the transaction we built in the previous sections
 Petra.transaction(identifier: 'tr1') do
-  puts user.petra.name #=> 'Foo Bar'
+  puts user.name #=> 'Foo Bar'
   Petra.commit!
 end
 
+# The actual object is finally updated
 puts user.name #=> 'Foo Bar'
 ```
 
