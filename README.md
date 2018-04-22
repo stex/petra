@@ -331,6 +331,8 @@ end
 
 ## Full Configuration Options
 
+![](https://drive.google.com/uc?id=1ZqrvNwygPCf-2VaMZSRQPYWZVjqxx2Yw&export=download)
+
 ## Custom Proxy Classes
 
 ## How it works
