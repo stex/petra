@@ -12,6 +12,18 @@ LineLength:
 Layout/EmptyLinesAroundModuleBody:
   Enabled: false
 
+# Hashes do not need padding
+Layout/SpaceInsideHashLiteralBraces:
+  Enabled: false
+
+# Allow 2 space indentation for when inside a case
+Layout/CaseIndentation:
+  Enabled: false
+
+# Allow empty lines in classes
+Layout/EmptyLinesAroundClassBody:
+  Enabled: false
+
 #--------------------------------------------------
 #                     Style
 #--------------------------------------------------
@@ -22,18 +34,6 @@ Style/NumericLiterals:
 
 # Not all modules have to have top level comments
 Style/Documentation:
-  Enabled: false
-
-# Hashes do not need padding
-Style/SpaceInsideHashLiteralBraces:
-  Enabled: false
-
-# Allow 2 space indentation for when inside a case
-Style/CaseIndentation:
-  Enabled: false
-
-# Allow empty lines in classes
-Style/EmptyLinesAroundClassBody:
   Enabled: false
 
 # Allow fail/raise differentiation
