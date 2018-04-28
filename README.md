@@ -3,7 +3,7 @@
 # petra
 <img src="https://drive.google.com/uc?id=1BKauBWbE66keL1gBBDfgSaRE0lL5x586&export=download" width="200" align="right" />
 
-Petra is a proof-of-concept for **pe**rsisted **tra**nsactions in Ruby with (hopefully) full `ACI(D)` properties.
+Petra is a proof-of-concept for **pe**rsisted **tra**nsactions in Ruby with (hopefully) full ACI(D) properties.
 
 Please note that this was created during my master's thesis in 2016 and hasn't been extended a lot since then except for a few coding style fixes. I would write a lot of stuff differently today, but the main concept is still interesting enough.
 
@@ -67,6 +67,8 @@ puts user.name #=> 'Foo Bar'
 
 We just used a simple Ruby object inside a transaction which was even split into multiple sections! 
 
+(The full example can be found at [`examples/showcase.rb`](https://github.com/Stex/petra/blob/master/examples/showcase.rb))
+
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## TOC
@@ -86,7 +88,6 @@ We just used a simple Ruby object inside a transaction which was even split into
   - [Class Proxies](#class-proxies)
   - [Module Proxies](#module-proxies)
   - [Persistence Adapters](#persistence-adapters)
-  - [Log Entry Types](#log-entry-types)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -643,4 +644,72 @@ Please take a look at [`lib/petra/proxies/abstract_proxy.rb`](https://github.com
 
 ### Persistence Adapters
 
-### Log Entry Types
+For its transaction handling, `petra` needs access to a storage with atomic write operations to store its transaction logs as well as being able to lock certain resources (during commit phase, no other transaction may have access to certain resources).
+
+[`Petra::PersistenceAdapters::Adapter`](https://github.com/Stex/petra/blob/master/lib/petra/persistence_adapters/adapter.rb) provides an interface for classes which provide this functionality. [`FileAdapter`](https://github.com/Stex/petra/blob/master/lib/petra/persistence_adapters/file_adapter.rb) is the reference implementation which uses the file system and UNIX file locks.
+
+#### Required Methods
+
+**`persist!`**
+
+Saves all available transaction log entries to the storage.
+Log entries are added using `#enqueue(entry)` and available as `queue` inside your adapter instance.
+
+* A transaction lock has to be applied
+* Entries have to be marked as persisted afterwards using `entry.mark_as_persisted!`
+
+
+**`transaction_identifiers`**
+
+Should return the identifiers of all transactions which were started, but not yet committed.
+
+**`savepoints(transaction)`**
+
+Should return all savepoints (section identifiers) for the given transaction,
+
+**`log_entries(section)`**
+
+Should return all log entries which were persisted for the given section in the past.
+
+**`reset_transaction(transaction)`**
+
+Removes all information currently stored regarding the given transaction
+
+**`with_global_lock(suspend:, &block)`**
+
+Acquires a global lock (only one thread may hold it at the same time), runs the given block and releases the global lock again.
+
+If `suspend` is set to `true`, the execution will wait for the lock to be available, otherwise, a `Petra::LockError` is thrown if the lock is not available.
+
+You have to make sure that the lock is freed again if an error occurs within the given block or your own implementation.
+
+**`with_transaction_lock(transaction, suspend:)`**
+
+Acquires a lock on the given transaction.
+
+**`with_object_lock(object, suspend:)`**
+
+Acquires a lock on the given Object (Proxy). 
+
+Make sure that your implementation allows one thread locking the resource multiple times without stalling.
+
+```ruby
+with_object_lock(obj1) do
+  with_object_lock(obj1) do # Should work as we already hold the lock
+   ...
+  end
+end 
+```
+
+
+#### Registering a new adapter
+
+Similar to Rails' mailer adapters, new adapter can be registered under a given name and be used in `petra`'s configuration afterwards:
+
+```ruby
+Petra::PersistenceAdapters::Adapter.register_adapter(:redis, RedisAdapter)
+
+Petra.configure do
+  persistence_adapter :redis
+end
+```
