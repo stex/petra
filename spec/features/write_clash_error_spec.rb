@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'byebug'
-
 describe 'Write Clash Error Handling' do
   let!(:user) { Classes::SimpleUser.petra.new }
 
@@ -31,13 +29,11 @@ describe 'Write Clash Error Handling' do
     context 'by accepting the external changes' do
       it 'discards the changes made inside the transaction' do
         Petra.transaction(identifier: 'tr1') do
-          begin
-            user.first_name
-            expect(user.first_name).to eql 'Moo'
-          rescue Petra::WriteClashError => e
-            e.use_theirs!
-            e.retry!
-          end
+          user.first_name
+          expect(user.first_name).to eql 'Moo'
+        rescue Petra::WriteClashError => e
+          e.use_theirs!
+          e.retry!
         end
       end
     end

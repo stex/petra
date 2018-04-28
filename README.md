@@ -26,8 +26,7 @@ class SimpleUser
   # ... configuration, see below
 end
 
-user = SimpleUser.petra.new
-user.first_name, user.last_name = 'John', 'Doe'
+user = SimpleUser.petra.new('John', 'Doe')
 
 # Start a new transaction and start changing attributes
 Petra.transaction(identifier: 'tr1') do
@@ -43,16 +42,26 @@ Petra.transaction(identifier: 'tr1') do
   user.last_name = 'Bar'
 end
 
-# Still nothing...
-puts user.name #=> 'John Doe'
-
-# Commit the transaction
-Petra.transaction(identifier: 'tr1') do
-  puts user.name #=> 'Foo Bar'
+# Another transaction changes a value already changed in 'tr1'
+Petra.transaction do
+  user.first_name = 'Moo'
   Petra.commit!
 end
 
-# The actual object is finally updated
+puts user.name #=> 'Moo Doe'
+
+# Try to commit our first transaction
+Petra.transaction(identifier: 'tr1') do
+  puts user.name
+  Petra.commit!
+rescue Petra::WriteClashError => e
+  # => "The attribute `first_name` has been changed externally and in the transaction. (Petra::WriteClashError)"
+  # Let's use our value and go on with committing the transaction
+  e.use_ours!
+  e.continue!
+end
+
+# The actual object is updated with the values from tr1
 puts user.name #=> 'Foo Bar'
 ```
 
@@ -69,9 +78,15 @@ We just used a simple Ruby object inside a transaction which was even split into
 - [Reacting to external changes](#reacting-to-external-changes)
   - [An attribute we previously read was changed externally](#an-attribute-we-previously-read-was-changed-externally)
   - [An attribute we changed in our transaction was also changed externally](#an-attribute-we-changed-in-our-transaction-was-also-changed-externally)
+  - [`continue!`?](#continue)
 - [Full Configuration Options](#full-configuration-options)
-- [Custom Proxy Classes](#custom-proxy-classes)
-- [How it works](#how-it-works)
+  - [Global Options](#global-options)
+  - [Class Specific Options](#class-specific-options)
+- [Extending `petra`](#extending-petra)
+  - [Class Proxies](#class-proxies)
+  - [Module Proxies](#module-proxies)
+  - [Persistence Adapters](#persistence-adapters)
+  - [Log Entry Types](#log-entry-types)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 

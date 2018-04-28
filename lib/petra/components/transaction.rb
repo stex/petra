@@ -282,44 +282,40 @@ module Petra
       #
       def commit!
         run_callbacks :commit do
-          begin
-            # Step 1: Lock this transaction so no other thread may alter it any more
-            persistence_adapter.with_transaction_lock(identifier) do
-              # Step 2: Try to get the locks for all objects which took part in this transaction
-              #   Acquire the locks on a sorted collection to avoid Deadlocks with other transactions
-              # We do not have to lock objects which were created within the transaction
-              #   as the cannot be altered outside of it and the transaction itself is locked.
-              with_locked_objects(objects.fateful.sort.reject(&:__new?), suspend: false) do
-                # Step 3: Now that we got locks on all objects used during this transaction,
-                #   we can check whether all read attributes still have the same value.
-                #   If that's not the case, we may not proceed.
-                objects.verify_read_attributes!(force: true)
+          # Step 1: Lock this transaction so no other thread may alter it any more
+          persistence_adapter.with_transaction_lock(identifier) do
+            # Step 2: Try to get the locks for all objects which took part in this transaction
+            #   Acquire the locks on a sorted collection to avoid Deadlocks with other transactions
+            # We do not have to lock objects which were created within the transaction
+            #   as the cannot be altered outside of it and the transaction itself is locked.
+            with_locked_objects(objects.fateful.sort.reject(&:__new?), suspend: false) do
+              # Step 3: Now that we got locks on all objects used during this transaction,
+              #   we can check whether all read attributes still have the same value.
+              #   If that's not the case, we may not proceed.
+              objects.verify_read_attributes!(force: true)
 
-                # Step 4: Now that we know that all read values are still valid,
-                #   we may actually apply all the changes we previously logged.
-                sections.each(&:apply_log_entries!)
+              # Step 4: Now that we know that all read values are still valid,
+              #   we may actually apply all the changes we previously logged.
+              sections.each(&:apply_log_entries!)
 
-                @committed = true
-                Petra.logger.info "Committed transaction #{@identifier}", :blue, :underline
+              @committed = true
+              Petra.logger.info "Committed transaction #{@identifier}", :blue, :underline
 
-                # Step 5: Wow, me made it this far!
-                #   Now it's time to clean up and remove the data we previously persisted for this
-                #   transaction before releasing the lock on all of the objects and the transaction itself.
-                # TODO: See if this causes problems with other threads working on this transactions. Probably keep
-                #   the entries around and just mark the transaction as committed?
-                #   Idea: keep it and add a last log entry like `transaction_commit` and persist it.
-                persistence_adapter.reset_transaction(self)
-              end
+              # Step 5: Wow, me made it this far!
+              #   Now it's time to clean up and remove the data we previously persisted for this
+              #   transaction before releasing the lock on all of the objects and the transaction itself.
+              # TODO: See if this causes problems with other threads working on this transactions. Probably keep
+              #   the entries around and just mark the transaction as committed?
+              #   Idea: keep it and add a last log entry like `transaction_commit` and persist it.
+              persistence_adapter.reset_transaction(self)
             end
-          rescue Petra::ReadIntegrityError
-            raise
-            # One (or more) of the attributes from our read set changed externally
-          rescue Petra::LockError
-            raise
-            # One (or more) of the objects could not be locked.
-            #   The object locks are freed by itself, but we have to notify
-            #   the outer application about this commit error
           end
+        rescue Petra::ReadIntegrityError # One (or more) of the attributes from our read set changed externally
+          raise
+        rescue Petra::LockError # One (or more) of the objects could not be locked.
+          #   The object locks are freed by itself, but we have to notify
+          #   the outer application about this commit error
+          raise
         end
       end
 

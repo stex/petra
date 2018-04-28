@@ -25,13 +25,11 @@ describe Petra::ReadIntegrityError do
     end
 
     transaction(1) do
-      begin
-        @user = user
-        user.last_name
-      rescue Petra::ReadIntegrityError => e
-        @exception = e
-        example.run
-      end
+      @user = user
+      user.last_name
+    rescue Petra::ReadIntegrityError => e
+      @exception = e
+      example.run
     end
   end
 

@@ -11,7 +11,7 @@ class Philosopher
   attr_reader :number
 
   def initialize(number, *sticks)
-    @number = number
+    @number                   = number
     @left_stick, @right_stick = sticks.map(&:petra)
   end
 
@@ -36,15 +36,13 @@ class Philosopher
 
   def take_sticks
     Petra.transaction(identifier: "philosopher_#{@number}") do
-      begin
-        take_stick(@left_stick)
-        take_stick(@right_stick)
-        Petra.commit!
-      rescue Petra::LockError => e
-        e.retry!
-      rescue Petra::ReadIntegrityError, Petra::WriteClashError => e
-        e.retry!
-      end
+      take_stick(@left_stick)
+      take_stick(@right_stick)
+      Petra.commit!
+    rescue Petra::LockError => e
+      e.retry!
+    rescue Petra::ReadIntegrityError, Petra::WriteClashError => e
+      e.retry!
     end
   end
 
@@ -118,11 +116,11 @@ end
 # interrupting the main thread.
 Thread.abort_on_exception = true
 
-sticks = Array.new(5) { |i| Stick.new(i) }
+sticks       = Array.new(5) { |i| Stick.new(i) }
 philosophers = Array.new(5) { |i| Philosopher.new(i, sticks[i], sticks[(i + 1) % 5]) }
 
 philosophers.map do |phil|
-  t = Thread.new { phil.live }
+  t      = Thread.new { phil.live }
   t.name = "Philosopher #{phil.number}"
 end
 

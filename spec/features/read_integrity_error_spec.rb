@@ -29,12 +29,10 @@ describe 'Read Integrity Error Handling' do
     context 'by simply not doing anything' do
       it 'raises the error again the next time' do
         Petra.transaction(identifier: 'tr1') do
-          begin
-            user.first_name # raises an exception
-            expect { user.first_name }.to raise_error Petra::ReadIntegrityError
-          rescue Petra::ReadIntegrityError => e
-            e.continue!
-          end
+          user.first_name # raises an exception
+          expect { user.first_name }.to raise_error Petra::ReadIntegrityError
+        rescue Petra::ReadIntegrityError => e
+          e.continue!
         end
       end
     end
@@ -42,26 +40,22 @@ describe 'Read Integrity Error Handling' do
     context 'by ignoring the change' do
       it 'does not raise an exception for the the same external value again' do
         Petra.transaction(identifier: 'tr1') do
-          begin
-            user.first_name # raises an exception
-            expect { user.first_name }.not_to raise_error Petra::ReadIntegrityError
-          rescue Petra::ReadIntegrityError => e
-            e.ignore!
-            e.retry!
-          end
+          user.first_name # raises an exception
+          expect { user.first_name }.not_to raise_error
+        rescue Petra::ReadIntegrityError => e
+          e.ignore!
+          e.retry!
         end
       end
 
       context 'and updating the value inside the transaction' do
         it 'ignores the external change, but applies the new value' do
           Petra.transaction(identifier: 'tr1') do
-            begin
-              user.first_name = 'Gustav' if user.first_name == 'Olaf'
-              expect(user.first_name).to eql 'Gustav'
-            rescue Petra::ReadIntegrityError => e
-              e.ignore!(update_value: true)
-              e.retry!
-            end
+            user.first_name = 'Gustav' if user.first_name == 'Olaf'
+            expect(user.first_name).to eql 'Gustav'
+          rescue Petra::ReadIntegrityError => e
+            e.ignore!(update_value: true)
+            e.retry!
           end
         end
       end
@@ -69,13 +63,11 @@ describe 'Read Integrity Error Handling' do
       context 'and keeping our old value' do
         it 'ignores the external change and the new value' do
           Petra.transaction(identifier: 'tr1') do
-            begin
-              user.first_name = 'Gustav' if user.first_name == 'Olaf'
-              expect(user.first_name).to eql 'Karl'
-            rescue Petra::ReadIntegrityError => e
-              e.ignore!(update_value: false)
-              e.continue!
-            end
+            user.first_name = 'Gustav' if user.first_name == 'Olaf'
+            expect(user.first_name).to eql 'Karl'
+          rescue Petra::ReadIntegrityError => e
+            e.ignore!(update_value: false)
+            e.continue!
           end
         end
       end
