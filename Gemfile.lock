@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    petra (0.0.1)
+    petra_core (0.0.1)
       activesupport (~> 4.2)
       method_source (~> 0.9.0)
 
@@ -14,7 +14,6 @@ GEM
       thread_safe (~> 0.3, >= 0.3.4)
       tzinfo (~> 1.1)
     ast (2.4.0)
-    byebug (10.0.0)
     coderay (1.1.2)
     concurrent-ruby (1.0.5)
     diff-lcs (1.3)
@@ -54,7 +53,6 @@ GEM
       ruby-progressbar (~> 1.7)
       unicode-display_width (~> 1.0, >= 1.0.1)
     ruby-progressbar (1.9.0)
-    sqlite3 (1.3.13)
     thread_safe (0.3.6)
     tzinfo (1.2.5)
       thread_safe (~> 0.1)
@@ -65,14 +63,12 @@ PLATFORMS
 
 DEPENDENCIES
   bundler (~> 1.16)
-  byebug
-  faker
-  petra!
-  pry
+  faker (~> 1.8.7)
+  petra_core!
+  pry (~> 0.11.3)
   rake (~> 10.0)
   rspec (~> 3.0)
   rubocop (~> 0.53.0)
-  sqlite3
 
 BUNDLED WITH
    1.16.1

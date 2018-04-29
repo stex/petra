@@ -5,7 +5,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'petra/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = 'petra'
+  spec.name          = 'petra_core'
   spec.version       = Petra::VERSION
   spec.authors       = ['Stefan Exner']
   spec.email         = ['stex@sterex.de']
@@ -28,11 +28,9 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'method_source', '~> 0.9.0'
 
   spec.add_development_dependency 'bundler', '~> 1.16'
-  spec.add_development_dependency 'byebug'
-  spec.add_development_dependency 'faker'
-  spec.add_development_dependency 'pry'
+  spec.add_development_dependency 'faker', '~> 1.8.7'
+  spec.add_development_dependency 'pry', '~> 0.11.3'
   spec.add_development_dependency 'rake', '~> 10.0'
   spec.add_development_dependency 'rspec', '~> 3.0'
   spec.add_development_dependency 'rubocop', '~> 0.53.0'
-  spec.add_development_dependency 'sqlite3'
 end
