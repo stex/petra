@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/Stex/petra.svg?branch=master)](https://travis-ci.org/Stex/petra)
+[![Gem Version](https://badge.fury.io/rb/petra_core.svg)](https://badge.fury.io/rb/petra_core)
 
 # petra
 <img src="https://drive.google.com/uc?id=1BKauBWbE66keL1gBBDfgSaRE0lL5x586&export=download" width="200" align="right" />
