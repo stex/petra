@@ -73,6 +73,7 @@ We just used a simple Ruby object inside a transaction which was even split into
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## TOC
 
+- [Installation](#installation)
 - [Basic Usage](#basic-usage)
   - [Starting/Resuming a transaction](#startingresuming-a-transaction)
   - [Transactional Objects and their Configuration](#transactional-objects-and-their-configuration)
@@ -90,6 +91,17 @@ We just used a simple Ruby object inside a transaction which was even split into
   - [Persistence Adapters](#persistence-adapters)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Installation
+
+Simply add the following line to your gemfile:
+
+```ruby
+gem 'petra_core', require: 'petra'
+```
+    
+Unfortunately, the gem name `petra` is already taken and `petra-core` would express that this gem is extending it, so 
+I went for an underscore for now. It's hard finding nice-sounding gem names which are not yet taken nowadays :/
 
 ## Basic Usage
 

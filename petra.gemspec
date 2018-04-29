@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ['Stefan Exner']
   spec.email         = ['stex@sterex.de']
 
-  spec.summary       = 'Temporarily persisted transactions'
+  spec.summary       = 'Proof-Of-Concept for temporarily persisted transactions in Ruby'
   spec.homepage      = 'https://github.com/stex/petra'
   spec.license       = 'MIT'
 
@@ -28,8 +28,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'method_source', '~> 0.9.0'
 
   spec.add_development_dependency 'bundler', '~> 1.16'
-  spec.add_development_dependency 'faker', '~> 1.8.7'
-  spec.add_development_dependency 'pry', '~> 0.11.3'
+  spec.add_development_dependency 'faker', '~> 1.8'
+  spec.add_development_dependency 'pry', '~> 0.11'
   spec.add_development_dependency 'rake', '~> 10.0'
   spec.add_development_dependency 'rspec', '~> 3.0'
   spec.add_development_dependency 'rubocop', '~> 0.53.0'
