@@ -301,10 +301,9 @@ module Petra
       # @see #class_method!
       #
       def instance_method!
-        return if class_proxy?
+        return unless class_proxy?
         fail Petra::PetraError, 'This method is meant to be used as an instance method only!'
       end
-
     end
   end
 end
