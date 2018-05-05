@@ -178,14 +178,6 @@ module Petra
             raise
           when Petra::AbortTransaction
             nil
-          # ActionView wraps errors inside an own error class. Therefore,
-          # we have to extract the actual exception first.
-          # TODO: Allow the registration of error handlers for certain exceptions to get rid of
-          #   this very specific behaviour in petra core
-          # TODO: There is a mechanism in petra-rails' `petra_transaction` to extract
-          #   the original exceptions. May we get rid of this now?
-          when ->(_) { Petra.rails? && error.is_a?(ActionView::Template::Error) }
-            handle_exception(error.original_exception, transaction: transaction)
           else
             # If another exception happened, we forward it to the actual application
             transaction.reset!
