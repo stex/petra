@@ -49,7 +49,10 @@ module Petra
       # The log entry itself decides whether it is actually executed or not.
       #
       def apply!
-        object_persisted.each(&:apply!)
+        object_persisted.each do |o|
+          Petra.logger.debug "Applying entry #{o}"
+          o.apply!
+        end
       end
 
       #

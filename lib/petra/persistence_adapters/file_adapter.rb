@@ -59,7 +59,7 @@ module Petra
           # search further for log entries
           return [] unless section_dir.exist?
 
-          section_dir.children.select { |f| f.extname == '.entry' }.map do |f|
+          section_dir.children.sort.select { |f| f.extname == '.entry' }.map do |f|
             entry_hash = ::YAML.load_file(f.to_s)
             Petra::Components::LogEntry.from_hash(section, entry_hash)
           end
