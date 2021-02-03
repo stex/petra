@@ -2,7 +2,7 @@
 [![Gem Version](https://badge.fury.io/rb/petra_core.svg)](https://badge.fury.io/rb/petra_core)
 
 # petra
-<img src="https://drive.google.com/uc?id=1BKauBWbE66keL1gBBDfgSaRE0lL5x586&export=download" width="200" align="right" />
+<img src="petra.png" width="200" align="right" />
 
 Petra is a proof-of-concept for **pe**rsisted **tra**nsactions in Ruby with (hopefully) full ACI(D) properties.
 
